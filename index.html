@@ -15,10 +15,16 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
+
       gtag('config', 'G-V3CLSWYVTF');
     </script>
 </head>
 <body>
+
+<!-- Video element for face detection -->
+<video id="video" width="720" height="560" autoplay muted playsinline class="hidden"></video>
+<div id="face-detection-status" class="face-status-prompt hidden"></div>
+
 <!-- Firebase Auth Modal -->
 <div id="authModal" class="modal visible">
     <div class="modal-content auth-container">
@@ -31,6 +37,7 @@
                 <button type="submit">Sign Up</button>
                 <p class="auth-switch">Already have an account? <a href="#" id="show-login">Log In</a></p>
             </form>
+
             <!-- Login Form -->
             <form id="login-form" class="auth-form hidden">
                 <h2>Welcome Back!</h2>
@@ -43,6 +50,7 @@
         </div>
     </div>
 </div>
+
 
 <!-- Main App Content (Initially Hidden) -->
 <div id="app-container" class="hidden">
@@ -64,6 +72,7 @@
             <button id="logoutBtn" class="header-btn btn-danger">Logout</button>
         </div>
     </header>
+
     <main>
         <section id="timer-section">
             <div id="status">Work Session</div>
@@ -81,6 +90,7 @@
                 </button>
             </div>
         </section>
+
         <section id="features-section">
             <div id="todo-container">
                 <h2>🎯 To-Do List</h2>
@@ -91,6 +101,7 @@
                 <ul id="todo-list"></ul>
                 <button class="clear-todos-btn">Clear All Tasks</button>
             </div>
+            
             <div class="controls-container">
                 <h2>✨ Ambience & Display</h2>
                 <div class="control-group">
@@ -108,29 +119,31 @@
     </main>
 </div>
 
-<!-- Stats Modal -->
 <div id="statsModal" class="modal">
     <div class="modal-content">
         <span class="close-btn">&times;</span>
         <h2>Your Progress 📈</h2>
-        <a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="margin-left: auto; margin-right: 20px;">
-            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
-        </a>
+
+       <!-- This is the new code with the right margin -->
+<a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="margin-left: auto; margin-right: 20px;">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
+</a>
+        
         <div class="tabs">
             <div class="tab active" data-tab="stats">📈 Stats</div>
             <div class="tab" data-tab="store">🛒 Themes</div>
             <div class="tab" data-tab="settings">⚙️ Settings</div>
             <div class="tab" data-tab="profile">👤 Profile</div>
         </div>
-        <!-- Stats Tab -->
+
         <div id="statsContainer" class="tab-content active">
-            <p class="stats-summary">Total Focus: <strong id="totalFocusTime">0h 0m</strong> | Total Sessions: <strong id="totalSessionsCount">0</strong></p>
+             <p class="stats-summary">Total Focus: <strong id="totalFocusTime">0h 0m</strong> | Total Sessions: <strong id="totalSessionsCount">0</strong></p>
             <div class="chart-group">
                 <div class="chart-container"><canvas id="barChart"></canvas></div>
                 <div class="chart-container"><canvas id="pieChart"></canvas></div>
             </div>
         </div>
-        <!-- Store Tab -->
+
         <div id="storeContainer" class="tab-content">
             <div class="settings-group">
                 <h3>🎬 YouTube Background</h3>
@@ -141,7 +154,7 @@
             </div>
             <h3>Or Select a Theme</h3>
             <div id="storeItems">
-                <div class="store-item" data-type="image" data-path="https://images.unsplash.com/photo-1542831371-d648083a23de?q=80&w=2070&auto=format&fit=crop">
+                 <div class="store-item" data-type="image" data-path="https://images.unsplash.com/photo-1542831371-d648083a23de?q=80&w=2070&auto=format&fit=crop">
                     <span>🌆 Cosmic Code</span><button>Apply</button>
                 </div>
                 <div class="store-item" data-type="youtube" data-id="4wJRkS-M-3s">
@@ -155,7 +168,7 @@
                 </div>
             </div>
         </div>
-        <!-- Settings Tab -->
+        
         <div id="settingsContainer" class="tab-content">
             <h3>⏱️ Timer Durations (minutes)</h3>
             <div class="settings-grid">
@@ -166,35 +179,42 @@
                 <label for="long-break-duration">Long Break:</label>
                 <input type="number" id="long-break-duration" min="1">
             </div>
-            <button id="saveSettingsBtn">Save Settings</button>
-            <hr style="margin: 2rem 0;">
-            <!-- ============ NEW SOUND & ACCOUNTABILITY SETTINGS =============== -->
+
+            <!-- New Settings -->
+            <h3>🎵 Sound Effects</h3>
             <div class="settings-group">
-                <h3>🔊 Start-End Sound Effects</h3>
-                <select id="soundRegionSelect" class="settings-dropdown">
+                 <label for="sound-effects-select">Start/End Sounds:</label>
+                 <select id="sound-effects-select" class="settings-select">
                     <option value="indian">For Indians</option>
                     <option value="non-indian">For Non-Indians</option>
-                    <option value="off">Turn Off Sound Effects</option>
+                    <option value="off">Turn Off</option>
                 </select>
             </div>
+            
+            <h3>🤖 Accountability AI</h3>
             <div class="settings-group">
-                <h3>🕵️ Accountability Partner</h3>
-                <label class="switch">
-                    <input type="checkbox" id="enableAccountability">
-                    <span class="slider"></span>
-                </label>
-                <span class="settings-description">Pause timer if you’re away from the screen for more than 15 seconds</span>
+                <div class="toggle-switch-container">
+                    <label for="accountability-toggle">Accountability Partner (Camera)</label>
+                    <label class="switch">
+                        <input type="checkbox" id="accountability-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <p class="settings-description">Pauses the timer if you're away from the screen for 15+ seconds.</p>
+
+                <div class="toggle-switch-container">
+                    <label for="sleep-detection-toggle">Sleep Detection</label>
+                    <label class="switch">
+                        <input type="checkbox" id="sleep-detection-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <p class="settings-description">Pauses the timer if your eyes are closed for 10+ seconds.</p>
             </div>
-            <div class="settings-group">
-                <h3>😴 Sleep Detection</h3>
-                <label class="switch">
-                    <input type="checkbox" id="enableSleepDetection">
-                    <span class="slider"></span>
-                </label>
-                <span class="settings-description">Pause timer if eyes closed for more than 10 seconds</span>
-            </div>
+
+            <button id="saveSettingsBtn">Save Settings</button>
         </div>
-        <!-- Profile Tab -->
+        
         <div id="profileContainer" class="tab-content">
             <div class="info-zone">
                 <h3>🔥 Streak Info</h3>
@@ -230,32 +250,61 @@
     </div>
 </div>
 
-<!-- =========== BEAUTIFUL REVIEW MODAL WITH ASSISTANT CHARACTER ========== -->
-<div id="reviewModal" class="modal">
-    <div class="modal-content review-content">
-        <div class="assistant-character">
-            <!-- Replace with your own SVG/avatar/emoji as desired -->
-            <img src="https://cdn.jsdelivr.net/gh/thisisyuvraj-08/KisaanConnect/assistant-owl.svg" alt="Assistant Owl" width="90" height="90" />
-        </div>
-        <div class="review-summary">
-            <h2 id="review-title">Great Session! 🎉</h2>
-            <p id="review-focus"></p>
-            <p id="review-away"></p>
-            <p id="review-sleep"></p>
-        </div>
-        <button id="closeReviewModalBtn">Close</button>
+<div id="completionModal" class="modal">
+    <div class="completion-content">
+        <div class="completion-icon">🎉</div>
+        <h2 id="completion-title">Session Complete!</h2>
+        <p id="completion-message">Great work! Keep the momentum going.</p>
+        <button id="closeCompletionModalBtn">Awesome!</button>
     </div>
 </div>
 
-<!-- New Floating Video Player Structure -->
+<!-- New Session Review Modal -->
+<div id="reviewModal" class="modal">
+    <div class="review-modal-content">
+        <div class="assistant-character">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <g class="assistant-body">
+                    <circle cx="50" cy="60" r="30" fill="#6c63ff"/>
+                    <rect x="40" y="85" width="20" height="10" rx="5" fill="#6c63ff"/>
+                </g>
+                <g class="assistant-eyes">
+                    <circle cx="40" cy="55" r="5" fill="white"/>
+                    <circle cx="60" cy="55" r="5" fill="white"/>
+                    <circle cx="41" cy="56" r="2" fill="black" class="pupil"/>
+                    <circle cx="61" cy="56" r="2" fill="black" class="pupil"/>
+                </g>
+                <path d="M 45 68 Q 50 75 55 68" stroke="white" stroke-width="2" fill="none" class="assistant-mouth"/>
+            </svg>
+        </div>
+        <h2 class="review-title">Session Review</h2>
+        <p class="review-subtitle">Here's how your focus session went:</p>
+        <div class="review-stats-grid">
+            <div class="review-stat-item">
+                <h3>Total Focus</h3>
+                <p id="reviewFocusTime">0m 0s</p>
+            </div>
+            <div class="review-stat-item">
+                <h3>Away Time</h3>
+                <p id="reviewAwayTime">0m 0s</p>
+            </div>
+            <div class="review-stat-item">
+                <h3>Total Duration</h3>
+                <p id="reviewTotalDuration">0m 0s</p>
+            </div>
+        </div>
+        <button id="closeReviewModalBtn">Keep Flowing!</button>
+    </div>
+</div>
+
+
+<!-- Floating Video Player -->
 <div id="pip-player-container" class="hidden">
     <div id="pip-player-header">
         <span class="pip-title">YouTube Player</span>
         <button id="pip-close-btn">&times;</button>
     </div>
-    <div id="pip-player-content">
-        <!-- YouTube iframe will be injected here -->
-    </div>
+    <div id="pip-player-content"></div>
     <div class="pip-input-container">
         <input type="text" id="pip-youtube-input" placeholder="Paste new YouTube URL here...">
         <button id="pip-set-btn">Set</button>
@@ -267,47 +316,40 @@
 <audio id="whiteNoise" loop><source src="whitenoise.mp3" type="audio/mpeg"></audio>
 <audio id="pauseAlertSound"><source src="https://actions.google.com/sounds/v1/ui/close_button_pressed.ogg" type="audio/ogg"></audio>
 <audio id="resumeAlertSound"><source src="https://actions.google.com/sounds/v1/ui/button_press.ogg" type="audio/ogg"></audio>
-<!-- Existing Indian meme sounds -->
-<audio class="start-sound" src="start-sound1.mp3"></audio>
-<audio class="start-sound" src="start-sound2.mp3"></audio>
-<audio class="start-sound" src="start-sound3.mp3"></audio>
-<audio class="start-sound" src="start-sound4.mp3"></audio>
-<audio class="good-meme" src="good-meme1.mp3"></audio>
-<audio class="good-meme" src="good-meme2.mp3"></audio>
-<audio class="good-meme" src="good-meme3.mp3"></audio>
-<audio class="good-meme" src="good-meme4.mp3"></audio>
-<audio class="bad-meme" src="bad-meme1.mp3"></audio>
-<audio class="bad-meme" src="bad-meme2.mp3"></audio>
-<audio class="bad-meme" src="bad-meme3.mp3"></audio>
-<audio class="bad-meme" src="bad-meme4.mp3"></audio>
-<!-- Non-Indian meme sounds -->
-<audio class="start-sound-int" src="start-sound-int1.mp3"></audio>
-<audio class="start-sound-int" src="start-sound-int2.mp3"></audio>
-<audio class="start-sound-int" src="start-sound-int3.mp3"></audio>
-<audio class="start-sound-int" src="start-sound-int4.mp3"></audio>
-<audio class="good-meme-int" src="good-meme-int1.mp3"></audio>
-<audio class="good-meme-int" src="good-meme-int2.mp3"></audio>
-<audio class="good-meme-int" src="good-meme-int3.mp3"></audio>
-<audio class="good-meme-int" src="good-meme-int4.mp3"></audio>
-<audio class="bad-meme-int" src="bad-meme-int1.mp3"></audio>
-<audio class="bad-meme-int" src="bad-meme-int2.mp3"></audio>
-<audio class="bad-meme-int" src="bad-meme-int3.mp3"></audio>
-<audio class="bad-meme-int" src="bad-meme-int4.mp3"></audio>
+
+<!-- Indian Meme Sounds -->
+<audio class="start-sound-indian" src="start-sound1.mp3"></audio>
+<audio class="start-sound-indian" src="start-sound2.mp3"></audio>
+<audio class="start-sound-indian" src="start-sound3.mp3"></audio>
+<audio class="start-sound-indian" src="start-sound4.mp3"></audio>
+<audio class="good-meme-indian" src="good-meme1.mp3"></audio>
+<audio class="good-meme-indian" src="good-meme2.mp3"></audio>
+<audio class="good-meme-indian" src="good-meme3.mp3"></audio>
+<audio class="good-meme-indian" src="good-meme4.mp3"></audio>
+<audio class="bad-meme-indian" src="bad-meme1.mp3"></audio>
+<audio class="bad-meme-indian" src="bad-meme2.mp3"></audio>
+<audio class="bad-meme-indian" src="bad-meme3.mp3"></audio>
+<audio class="bad-meme-indian" src="bad-meme4.mp3"></audio>
+
+<!-- Non-Indian Sounds -->
+<audio class="start-sound-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/start.mp3"></audio>
+<audio class="good-meme-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/good.mp3"></audio>
+<audio class="bad-meme-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/bad.mp3"></audio>
+
 
 <!-- FIREBASE SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js" type="module"></script>
-<!-- Face Landmarks Detection (TF.js) for sleep detection and accountability partner -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@3.21.0/dist/tf-core.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@3.21.0/dist/tf-converter.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.21.0/dist/tf-backend-webgl.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
+
 <!-- Libraries and Main Script -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+<!-- Face-api.js for camera features -->
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="script.js" type="module"></script>
-<!-- Buy Me A Coffee Button - Fixed to Bottom Left -->
+
+<!-- Buy Me A Coffee Button -->
 <a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
 </a>
