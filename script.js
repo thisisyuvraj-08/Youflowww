@@ -518,12 +518,43 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('closeReviewModalBtn').addEventListener('click', () => DOMElements.modals.review.classList.remove('visible'));
 
         // Auth
-        document.getElementById('signup-form').addEventListener('submit', async (e) => { e.preventDefault(); /* ... */ });
-        document.getElementById('login-form').addEventListener('submit', async (e) => { e.preventDefault(); /* ... */ });
+        document.getElementById('signup-form').addEventListener('submit', async (e) => { 
+            e.preventDefault(); 
+            DOMElements.authError.textContent = ''; 
+            const email = document.getElementById('signup-email').value; 
+            const password = document.getElementById('signup-password').value; 
+            try { 
+                await createUserWithEmailAndPassword(auth, email, password); 
+            } catch (error) { 
+                DOMElements.authError.textContent = error.message; 
+            } 
+        });
+        document.getElementById('login-form').addEventListener('submit', async (e) => { 
+            e.preventDefault(); 
+            DOMElements.authError.textContent = ''; 
+            const email = document.getElementById('login-email').value; 
+            const password = document.getElementById('login-password').value; 
+            try { 
+                await signInWithEmailAndPassword(auth, email, password); 
+            } catch (error) { 
+                DOMElements.authError.textContent = error.message; 
+            } 
+        });
         document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
-        document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); /* ... */ });
-        document.getElementById('show-signup').addEventListener('click', (e) => { e.preventDefault(); /* ... */ });
+        document.getElementById('show-login').addEventListener('click', (e) => { 
+            e.preventDefault(); 
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('signup-form').classList.add('hidden');
+            DOMElements.authError.textContent = '';
+        });
+        document.getElementById('show-signup').addEventListener('click', (e) => { 
+            e.preventDefault(); 
+            document.getElementById('signup-form').classList.remove('hidden');
+            document.getElementById('login-form').classList.add('hidden');
+            DOMElements.authError.textContent = '';
+        });
     }
     
     attachMainAppEventListeners();
 });
+
