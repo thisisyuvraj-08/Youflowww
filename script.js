@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let totalAwayTime = 0;
     let lastPauseTimestamp = null;
     let pauseWasManual = true;
+    let modelsLoaded = false; // Flag to check if face-api models are loaded
 
     // ===================================================================================
     // DOM ELEMENTS CACHE
@@ -137,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // The doc will be created by the signup function
             console.log("No user document found. A new one will be created on first data save.");
         }
-        initializeAppState();
+        await initializeAppState();
     }
 
     async function saveUserData() {
@@ -300,18 +301,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // ACCOUNTABILITY AI (FACE-API.JS)
     // ===================================================================================
     async function loadFaceApiModels() {
+        if (modelsLoaded) return;
         const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
         try {
+            console.log("Loading FaceAPI models...");
             await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
             await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
-            console.log("FaceAPI models loaded.");
+            console.log("FaceAPI models loaded successfully.");
+            modelsLoaded = true;
         } catch (error) {
             console.error("Error loading FaceAPI models:", error);
+            alert("Could not load accountability models. Please check your connection and refresh.")
         }
     }
 
     async function startVideo() {
         try {
+            if (DOMElements.video.srcObject) return; // Already running
             const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
             DOMElements.video.srcObject = stream;
         } catch (err) {
@@ -347,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
         eyesClosedTimerStart = null;
     }
 
-    const EYE_AR_THRESH = 0.2; // Threshold for eye closure
+    const EYE_AR_THRESH = 0.22; // Threshold for eye closure
 
     function getEyeAspectRatio(landmarks) {
         const leftEye = landmarks.getLeftEye();
@@ -363,9 +369,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleFaceDetection() {
-        if (!isRunning || DOMElements.video.paused || DOMElements.video.ended) return;
+        if (!modelsLoaded || !isRunning || DOMElements.video.paused || DOMElements.video.ended || !DOMElements.video.srcObject) return;
 
-        const detections = await faceapi.detectAllFaces(DOMElements.video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(true);
+        const detections = await faceapi.detectAllFaces(DOMElements.video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 })).withFaceLandmarks(true);
 
         const faceDetected = detections.length > 0;
 
@@ -406,6 +412,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!isRunning && !pauseWasManual) startTimer(true);
                 }
             }
+        } else if (isSleepDetectionOn && !faceDetected) {
+            // If sleep detection is on but no face is seen, treat it like accountability
+            // This prevents gaming sleep detection by just leaving the screen
+            if (!awayTimerStart) {
+                awayTimerStart = Date.now();
+            }
         }
     }
 
@@ -421,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===================================================================================
     // INITIALIZATION & UI LOGIC
     // ===================================================================================
-    function initializeAppState() {
+    async function initializeAppState() {
         loadSettingsFromData();
         updateTimerDisplay();
         updateUIState();
@@ -429,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCornerWidget();
         DOMElements.profile.nameDisplay.textContent = currentUserData.profileName || "Floww User";
         loadTheme();
-        loadFaceApiModels();
+        await loadFaceApiModels();
     }
     
     function loadSettingsFromData() {
@@ -439,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         longBreakDuration = settings.longBreakDuration || 15 * 60;
         if (!isRunning && !isWorkSession) {
              timeLeft = (sessionCount % 4 === 0) ? longBreakDuration : shortBreakDuration;
-        } else {
+        } else if (!isRunning) {
             timeLeft = workDuration;
         }
 
@@ -489,7 +501,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!sessionStartTime || !isWorkSession) return;
         
         const totalDurationMs = Date.now() - sessionStartTime;
-        const awayTimeMs = totalAwayTime + (lastPauseTimestamp ? Date.now() - lastPauseTimestamp : 0);
+        // Finalize away time calculation
+        const currentPauseDuration = lastPauseTimestamp ? Date.now() - lastPauseTimestamp : 0;
+        const awayTimeMs = totalAwayTime + currentPauseDuration;
         const focusTimeMs = totalDurationMs - awayTimeMs;
 
         const formatMs = (ms) => {
@@ -638,7 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 theme: { backgroundPath: null, youtubeVideoId: null }
             };
             await saveUserData();
-            initializeAppState();
+            await initializeAppState();
             updateTimerDisplay();
         }});
 
@@ -678,7 +692,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     theme: { backgroundPath: null, youtubeVideoId: null }
                 };
                 await setDoc(userDataRef, currentUserData);
-                initializeAppState();
+                await initializeAppState();
 
             } catch (error) { 
                 DOMElements.authError.textContent = error.message; 
