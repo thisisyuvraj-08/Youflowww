@@ -34,6 +34,11 @@
                 <h2>Create Your YouFloww Account</h2>
                 <input type="email" id="signup-email" placeholder="Email Address" required>
                 <input type="password" id="signup-password" placeholder="Password (min. 6 characters)" required>
+                <select id="signup-location" class="auth-select" required>
+                    <option value="" disabled selected>Where are you from?</option>
+                    <option value="indian">India</option>
+                    <option value="non-indian">Outside India</option>
+                </select>
                 <button type="submit">Sign Up</button>
                 <p class="auth-switch">Already have an account? <a href="#" id="show-login">Log In</a></p>
             </form>
@@ -220,7 +225,7 @@
                 <h3>🔥 Streak Info</h3>
                 <p>Complete at least one full work session of 25 minutes or more each day to build your streak. Keep the fire going!</p>
             </div>
-            <div class="danger-zone">
+             <div class="danger-zone">
                 <h3>⚠️ Danger Zone</h3>
                 <p>This will reset ALL your stats and settings permanently.</p>
                 <button id="clearDataBtn" class="btn-danger">Clear All Data</button>
