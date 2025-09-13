@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let animationFrameId = null;
     let isSnowActive = false, isRainActive = false, isSakuraActive = false;
     let lastSnowSpawn = 0, lastRainSpawn = 0, lastSakuraSpawn = 0;
+    const SNOW_INTERVAL = 200, RAIN_INTERVAL = 50, SAKURA_INTERVAL = 500;
 
     // ACCOUNTABILITY AI STATE
     const faceapi = window.faceapi;
@@ -67,7 +68,13 @@ document.addEventListener('DOMContentLoaded', () => {
         authError: document.getElementById("auth-error"),
         ambientContainer: document.getElementById("ambient-container"),
         faceStatusPrompt: document.getElementById('face-detection-status'),
-        focusMode: { /* ... */ },
+        focusMode: {
+            ui: document.getElementById("focusModeUI"),
+            timer: document.getElementById("focusModeTimer"),
+            progressBar: document.getElementById("focusModeProgressBar"),
+            playPauseBtn: document.getElementById("focusModePlayPauseBtn"),
+            exitBtn: document.getElementById("focusModeExitBtn"),
+        },
         modals: {
             stats: document.getElementById("statsModal"),
             completion: document.getElementById("completionModal"),
@@ -75,8 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
             totalFocusTime: document.getElementById("totalFocusTime"),
             totalSessionsCount: document.getElementById("totalSessionsCount"),
         },
-        profile: { /* ... */ },
-        streak: { /* ... */ },
+        profile: {
+            nameDisplay: document.getElementById("profileNameDisplay"),
+        },
+        streak: {
+            count: document.getElementById("streak-count"),
+        },
         settings: {
             soundEffects: document.getElementById('sound-effects-select'),
             accountabilityToggle: document.getElementById('accountability-toggle'),
@@ -86,7 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
             whiteNoise: document.getElementById("whiteNoise"),
             pauseAlert: document.getElementById("pauseAlertSound"),
             resumeAlert: document.getElementById("resumeAlertSound"),
-            // Sound sets will be dynamically selected
             indian: {
                 start: document.querySelectorAll('.start-sound-indian'),
                 good: document.querySelectorAll('.good-meme-indian'),
@@ -111,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadUserData();
         } else {
             DOMElements.appContainer.classList.add('hidden');
-            DOMElements.authModal.add('visible');
+            DOMElements.authModal.classList.add('visible');
             if (timerInterval) clearInterval(timerInterval);
             isRunning = false;
         }
@@ -123,25 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (docSnap.exists()) {
             currentUserData = docSnap.data();
         } else {
-            currentUserData = {
-                profileName: "Floww User",
-                totalFocusMinutes: 0,
-                totalSessions: 0,
-                streakCount: 0,
-                lastStreakDate: null,
-                weeklyFocus: {},
-                todos: [],
-                settings: {
-                    workDuration: 25 * 60,
-                    shortBreakDuration: 5 * 60,
-                    longBreakDuration: 15 * 60,
-                    soundProfile: 'indian',
-                    isAccountabilityOn: false,
-                    isSleepDetectionOn: false,
-                },
-                theme: { backgroundPath: null, youtubeVideoId: null }
-            };
-            await setDoc(userDataRef, currentUserData);
+            // This case handles a newly signed-up user who doesn't have a doc yet
+            // The doc will be created by the signup function
+            console.log("No user document found. A new one will be created on first data save.");
         }
         initializeAppState();
     }
@@ -161,26 +155,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const minutes = Math.floor(timeLeft / 60);
         const seconds = timeLeft % 60;
         const timeString = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-        DOMElements.timerDisplay.textContent = timeString;
-        document.title = isRunning ? `${timeString} - YouFloww` : 'YouFloww';
+        
+        DOMElements.timerDisplay.textContent = timeString; 
+        DOMElements.focusMode.timer.textContent = timeString;
+
+        const currentDuration = isWorkSession ? workDuration : (sessionCount % 4 === 0 ? longBreakDuration : shortBreakDuration);
+        const progress = timeLeft > 0 ? ((currentDuration - timeLeft) / currentDuration) * 100 : 0;
+        DOMElements.focusMode.progressBar.style.width = `${progress}%`;
+
+        document.title = isRunning ? `${timeString} - ${isWorkSession ? 'Work' : 'Break'} | YouFloww` : 'YouFloww';
     }
 
     function updateUIState() {
         DOMElements.statusDisplay.textContent = isWorkSession ? "Work Session" : "Break Time";
         DOMElements.playIcon.classList.toggle('hidden', isRunning);
         DOMElements.pauseIcon.classList.toggle('hidden', !isRunning);
+        DOMElements.playPauseBtn.setAttribute('aria-label', isRunning ? 'Pause Timer' : 'Start Timer');
         DOMElements.resetBtn.disabled = isRunning;
         DOMElements.endSessionBtn.disabled = !isRunning;
+        DOMElements.focusMode.playPauseBtn.classList.toggle('paused', !isRunning);
     }
 
     function playRandomSound(type) {
         const soundProfile = currentUserData.settings?.soundProfile;
         if (soundProfile === 'off') return;
 
-        let soundSet;
-        if (soundProfile === 'indian') soundSet = DOMElements.sounds.indian[type];
-        else if (soundProfile === 'non-indian') soundSet = DOMElements.sounds.nonIndian[type];
-
+        let soundSet = (soundProfile === 'indian') ? DOMElements.sounds.indian[type] : DOMElements.sounds.nonIndian[type];
+        
         if (soundSet && soundSet.length > 0) {
             const sound = soundSet[Math.floor(Math.random() * soundSet.length)];
             sound.currentTime = 0;
@@ -264,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const minutesFocused = Math.floor(workDuration / 60);
         handleEndOfWorkSession(minutesFocused, true);
         showCompletionPopup();
-        showSessionReview();
+        if (isAccountabilityOn || isSleepDetectionOn) showSessionReview();
 
         sessionCount++;
         isWorkSession = false;
@@ -416,52 +417,32 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideFaceStatusPrompt() {
         DOMElements.faceStatusPrompt.classList.remove('visible');
     }
-
-    // ===================================================================================
-    // UI, POPUPS, THEMES, HELPERS
-    // ===================================================================================
-    function showCompletionPopup() {
-        DOMElements.modals.completion.classList.add('visible');
-    }
     
-    function showSessionReview() {
-        if (!sessionStartTime || !isWorkSession) return;
-        
-        const totalDurationMs = Date.now() - sessionStartTime;
-        const awayTimeMs = totalAwayTime + (lastPauseTimestamp ? Date.now() - lastPauseTimestamp : 0);
-        const focusTimeMs = totalDurationMs - awayTimeMs;
-
-        const formatMs = (ms) => {
-            const totalSeconds = Math.floor(ms / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            return `${minutes}m ${seconds}s`;
-        };
-
-        document.getElementById('reviewFocusTime').textContent = formatMs(focusTimeMs);
-        document.getElementById('reviewAwayTime').textContent = formatMs(awayTimeMs);
-        document.getElementById('reviewTotalDuration').textContent = formatMs(totalDurationMs);
-
-        DOMElements.modals.review.classList.add('visible');
-    }
-
-
+    // ===================================================================================
+    // INITIALIZATION & UI LOGIC
+    // ===================================================================================
     function initializeAppState() {
         loadSettingsFromData();
         updateTimerDisplay();
         updateUIState();
-        // Other initializations...
+        loadTodos();
+        updateCornerWidget();
+        DOMElements.profile.nameDisplay.textContent = currentUserData.profileName || "Floww User";
+        loadTheme();
         loadFaceApiModels();
     }
-
+    
     function loadSettingsFromData() {
         const settings = currentUserData.settings || {};
         workDuration = settings.workDuration || 25 * 60;
         shortBreakDuration = settings.shortBreakDuration || 5 * 60;
         longBreakDuration = settings.longBreakDuration || 15 * 60;
-        if (!isRunning) timeLeft = workDuration;
+        if (!isRunning && !isWorkSession) {
+             timeLeft = (sessionCount % 4 === 0) ? longBreakDuration : shortBreakDuration;
+        } else {
+            timeLeft = workDuration;
+        }
 
-        // Update UI from saved data
         document.getElementById('work-duration').value = workDuration / 60;
         document.getElementById('short-break-duration').value = shortBreakDuration / 60;
         document.getElementById('long-break-duration').value = longBreakDuration / 60;
@@ -496,26 +477,170 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    function showCompletionPopup() { DOMElements.modals.completion.classList.add('visible'); }
+    function openStats() { DOMElements.modals.stats.classList.add('visible'); renderCharts(); updateStatsDisplay(); }
+    function closeStats() { DOMElements.modals.stats.classList.remove('visible'); }
+    function updateStatsDisplay() {
+        const totalMinutes = currentUserData.totalFocusMinutes || 0;
+        DOMElements.modals.totalFocusTime.textContent = `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
+        DOMElements.modals.totalSessionsCount.textContent = currentUserData.totalSessions || 0;
+    }
+    function showSessionReview() {
+        if (!sessionStartTime || !isWorkSession) return;
+        
+        const totalDurationMs = Date.now() - sessionStartTime;
+        const awayTimeMs = totalAwayTime + (lastPauseTimestamp ? Date.now() - lastPauseTimestamp : 0);
+        const focusTimeMs = totalDurationMs - awayTimeMs;
+
+        const formatMs = (ms) => {
+            const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes}m ${seconds}s`;
+        };
+
+        document.getElementById('reviewFocusTime').textContent = formatMs(focusTimeMs);
+        document.getElementById('reviewAwayTime').textContent = formatMs(awayTimeMs);
+        document.getElementById('reviewTotalDuration').textContent = formatMs(totalDurationMs);
+
+        DOMElements.modals.review.classList.add('visible');
+    }
+
+    function loadTodos() {
+        const todos = currentUserData.todos || [];
+        const todoList = document.getElementById('todo-list');
+        todoList.innerHTML = '';
+        todos.forEach((todo, index) => {
+            const li = document.createElement('li');
+            li.className = 'todo-item';
+            li.innerHTML = `<input type="checkbox" id="todo-${index}" ${todo.completed ? 'checked' : ''}> <label for="todo-${index}">${todo.text}</label>`;
+            li.querySelector('input').onchange = () => toggleTodo(index);
+            todoList.appendChild(li);
+        });
+    }
+    function addTodo() { const input = document.getElementById('todo-input'); if (input.value.trim()) { if (!currentUserData.todos) currentUserData.todos = []; currentUserData.todos.push({ text: input.value.trim(), completed: false }); saveUserData(); input.value = ''; loadTodos(); } }
+    function toggleTodo(index) { if (currentUserData.todos[index]) { currentUserData.todos[index].completed = !currentUserData.todos[index].completed; saveUserData(); loadTodos(); } }
+    function clearTodos() { if (confirm("Clear all tasks?")) { currentUserData.todos = []; saveUserData(); loadTodos(); } }
+    
+    function updateCornerWidget() {
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const dayProgress = ((now - startOfDay) / 86400000) * 100;
+        document.getElementById("dayProgressBar").style.width = `${dayProgress}%`;
+        document.getElementById("dayProgressPercent").textContent = `${Math.floor(dayProgress)}%`;
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const monthProgress = (now.getDate() / endOfMonth.getDate()) * 100;
+        document.getElementById("monthProgressBar").style.width = `${monthProgress}%`;
+        document.getElementById("monthProgressPercent").textContent = `${Math.floor(monthProgress)}%`;
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        const isLeap = new Date(now.getFullYear(), 1, 29).getMonth() === 1;
+        const totalDaysInYear = isLeap ? 366 : 365;
+        const dayOfYear = Math.floor((now - startOfYear) / 86400000) + 1;
+        const yearProgress = (dayOfYear / totalDaysInYear) * 100;
+        document.getElementById("yearProgressBar").style.width = `${yearProgress}%`;
+        document.getElementById("yearProgressPercent").textContent = `${Math.floor(yearProgress)}%`;
+    }
+
+    function toggleFocusMode() { document.body.classList.toggle('focus-mode'); }
+    
+    function ambientLoop(timestamp) {
+        if (isSnowActive && timestamp - lastSnowSpawn > SNOW_INTERVAL) { lastSnowSpawn = timestamp; createAndAnimateElement('snowflake', 8, 15, 'fall'); }
+        if (isRainActive && timestamp - lastRainSpawn > RAIN_INTERVAL) { lastRainSpawn = timestamp; createAndAnimateElement('raindrop', 0.4, 0.8, 'fall'); }
+        if (isSakuraActive && timestamp - lastSakuraSpawn > SAKURA_INTERVAL) { lastSakuraSpawn = timestamp; createAndAnimateElement('sakura', 15, 25, 'spinFall'); }
+        if (isSnowActive || isRainActive || isSakuraActive) { animationFrameId = requestAnimationFrame(ambientLoop); } else { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+    }
+    function createAndAnimateElement(className, minDuration, maxDuration, animationName) {
+        const el = document.createElement('div');
+        el.className = `ambient-effect ${className}`;
+        el.style.left = `${Math.random() * 100}vw`;
+        el.style.animation = `${animationName} ${Math.random() * (maxDuration - minDuration) + minDuration}s linear forwards`;
+        DOMElements.ambientContainer.appendChild(el);
+        el.addEventListener('animationend', () => el.remove());
+    }
+    function toggleAmbience(type) {
+        if (type === 'snow') isSnowActive = !isSnowActive;
+        if (type === 'rain') isRainActive = !isRainActive;
+        if (type === 'sakura') isSakuraActive = !isSakuraActive;
+        document.getElementById(`${type}Btn`).classList.toggle('active');
+        if (!animationFrameId && (isSnowActive || isRainActive || isSakuraActive)) {
+            animationFrameId = requestAnimationFrame(ambientLoop);
+        }
+    }
+    
+    function getYoutubeVideoId(url) { return url.match(/(?:[?&]v=|\/embed\/|youtu\.be\/)([^"&?/\s]{11})/) ?.[1] || null; }
+    function setYoutubeBackground(videoId) { document.getElementById("video-background-container").innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3" frameborder="0" allow="autoplay"></iframe>`; document.body.style.backgroundImage = 'none'; }
+    function applyBackgroundTheme(path) { document.body.style.backgroundImage = `url('${path}')`; document.getElementById("video-background-container").innerHTML = ''; }
+    function loadTheme() { if (currentUserData.theme?.backgroundPath) applyBackgroundTheme(currentUserData.theme.backgroundPath); if (currentUserData.theme?.youtubeVideoId) setYoutubeBackground(currentUserData.theme.youtubeVideoId); }
+    
+    // ===================================================================================
+    // EVENT LISTENERS
+    // ===================================================================================
     function attachMainAppEventListeners() {
-        // Timer controls
+        // Timer
         DOMElements.playPauseBtn.addEventListener('click', () => isRunning ? pauseTimer() : startTimer(true));
         DOMElements.resetBtn.addEventListener('click', resetTimer);
         DOMElements.endSessionBtn.addEventListener('click', endSession);
 
-        // Settings controls
-        document.getElementById("saveSettingsBtn").addEventListener('click', saveSettingsToData);
-        DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => {
-            isAccountabilityOn = e.target.checked;
-            if (isAccountabilityOn) startVideo(); else if (!isSleepDetectionOn) stopVideo();
-        });
-        DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => {
-            isSleepDetectionOn = e.target.checked;
-            if (isSleepDetectionOn) startVideo(); else if (!isAccountabilityOn) stopVideo();
-        });
+        // Header
+        document.getElementById('changeNameBtn').addEventListener('click', () => { const newName = prompt("Enter new name:", currentUserData.profileName); if (newName && newName.trim()) { currentUserData.profileName = newName.trim(); saveUserData(); DOMElements.profile.nameDisplay.textContent = newName.trim(); } });
+        document.getElementById('statsBtn').addEventListener('click', openStats);
 
         // Modals
+        DOMElements.modals.stats.querySelector('.close-btn').addEventListener('click', closeStats);
         document.getElementById('closeCompletionModalBtn').addEventListener('click', () => DOMElements.modals.completion.classList.remove('visible'));
         document.getElementById('closeReviewModalBtn').addEventListener('click', () => DOMElements.modals.review.classList.remove('visible'));
+        document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
+        
+        // Features
+        document.getElementById("noiseBtn").addEventListener('click', (e) => { const noise = DOMElements.sounds.whiteNoise; noise.paused ? noise.play() : noise.pause(); e.target.textContent = noise.paused ? "🎧 Play Noise" : "🎧 Stop Noise"; });
+        document.getElementById("snowBtn").addEventListener('click', () => toggleAmbience('snow'));
+        document.getElementById("rainBtn").addEventListener('click', () => toggleAmbience('rain'));
+        document.getElementById("sakuraBtn").addEventListener('click', () => toggleAmbience('sakura'));
+        
+        // Focus Mode
+        document.getElementById("focusModeBtn").addEventListener('click', toggleFocusMode);
+        DOMElements.focusMode.playPauseBtn.addEventListener('click', () => isRunning ? pauseTimer() : startTimer(true));
+        DOMElements.focusMode.exitBtn.addEventListener('click', toggleFocusMode);
+
+        // To-Do List
+        document.getElementById("add-todo-btn").addEventListener('click', addTodo);
+        document.querySelector('.clear-todos-btn').addEventListener('click', clearTodos);
+        document.getElementById('todo-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTodo(); });
+
+        // Settings
+        document.getElementById("saveSettingsBtn").addEventListener('click', saveSettingsToData);
+        DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => { isAccountabilityOn = e.target.checked; if (isAccountabilityOn) startVideo(); else if (!isSleepDetectionOn) stopVideo(); });
+        DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => { isSleepDetectionOn = e.target.checked; if (isSleepDetectionOn) startVideo(); else if (!isAccountabilityOn) stopVideo(); });
+
+        // Store / Themes
+        document.getElementById('storeItems').addEventListener('click', (e) => { 
+            if (e.target.tagName !== 'BUTTON') return;
+            const item = e.target.closest('.store-item'); 
+            currentUserData.theme = {}; 
+            if (item.dataset.type === 'image') { currentUserData.theme.backgroundPath = item.dataset.path; applyBackgroundTheme(item.dataset.path); } 
+            else if (item.dataset.type === 'youtube') { currentUserData.theme.youtubeVideoId = item.dataset.id; setYoutubeBackground(item.dataset.id); }
+            saveUserData();
+            closeStats();
+        });
+        document.getElementById("setYoutubeBtn").addEventListener('click', () => {
+            const url = document.getElementById("youtube-input").value; 
+            const videoId = getYoutubeVideoId(url);
+            if (videoId) { currentUserData.theme = { youtubeVideoId: videoId, backgroundPath: null }; setYoutubeBackground(videoId); saveUserData(); } 
+            else if (url) { alert("Please enter a valid YouTube URL."); }
+        });
+
+        // Profile / Danger Zone
+        document.getElementById("clearDataBtn").addEventListener('click', async () => { if (confirm("DANGER: This will reset ALL your stats and settings permanently.")) { 
+            const soundProfile = currentUserData.settings.soundProfile; // Preserve sound profile
+            currentUserData = {
+                profileName: "Floww User", totalFocusMinutes: 0, totalSessions: 0, streakCount: 0, lastStreakDate: null, weeklyFocus: {}, todos: [],
+                settings: { workDuration: 25 * 60, shortBreakDuration: 5 * 60, longBreakDuration: 15 * 60, soundProfile: soundProfile },
+                theme: { backgroundPath: null, youtubeVideoId: null }
+            };
+            await saveUserData();
+            initializeAppState();
+            updateTimerDisplay();
+        }});
 
         // Auth
         document.getElementById('signup-form').addEventListener('submit', async (e) => { 
@@ -523,8 +648,38 @@ document.addEventListener('DOMContentLoaded', () => {
             DOMElements.authError.textContent = ''; 
             const email = document.getElementById('signup-email').value; 
             const password = document.getElementById('signup-password').value; 
+            const location = document.getElementById('signup-location').value;
+
+            if (!location) {
+                DOMElements.authError.textContent = 'Please select where you are from.';
+                return;
+            }
+
             try { 
-                await createUserWithEmailAndPassword(auth, email, password); 
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                // Create a new user document in Firestore
+                userDataRef = doc(db, "users", userCredential.user.uid);
+                currentUserData = {
+                    profileName: "Floww User",
+                    totalFocusMinutes: 0,
+                    totalSessions: 0,
+                    streakCount: 0,
+                    lastStreakDate: null,
+                    weeklyFocus: {},
+                    todos: [],
+                    settings: {
+                        workDuration: 25 * 60, // Default 25 mins
+                        shortBreakDuration: 5 * 60,
+                        longBreakDuration: 15 * 60,
+                        soundProfile: location,
+                        isAccountabilityOn: false,
+                        isSleepDetectionOn: false,
+                    },
+                    theme: { backgroundPath: null, youtubeVideoId: null }
+                };
+                await setDoc(userDataRef, currentUserData);
+                initializeAppState();
+
             } catch (error) { 
                 DOMElements.authError.textContent = error.message; 
             } 
@@ -541,20 +696,38 @@ document.addEventListener('DOMContentLoaded', () => {
             } 
         });
         document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
-        document.getElementById('show-login').addEventListener('click', (e) => { 
-            e.preventDefault(); 
-            document.getElementById('login-form').classList.remove('hidden');
-            document.getElementById('signup-form').classList.add('hidden');
-            DOMElements.authError.textContent = '';
-        });
-        document.getElementById('show-signup').addEventListener('click', (e) => { 
-            e.preventDefault(); 
-            document.getElementById('signup-form').classList.remove('hidden');
-            document.getElementById('login-form').classList.add('hidden');
-            DOMElements.authError.textContent = '';
-        });
+        document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
+        document.getElementById('show-signup').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
+
+        // Global
+        setInterval(updateCornerWidget, 30000);
     }
     
+    function renderCharts() {
+        const weeklyData = currentUserData.weeklyFocus || {};
+        const today = new Date();
+        const labels = Array.from({ length: 7 }, (_, i) => { const d = new Date(today); d.setDate(today.getDate() - (6 - i)); return d.toLocaleDateString('en-US', { weekday: 'short' }); });
+        const data = labels.map((_, i) => { const d = new Date(today); d.setDate(today.getDate() - (6 - i)); const key = d.toISOString().slice(0, 10); return (weeklyData[key] || 0) / 60; });
+        const barCtx = document.getElementById('barChart').getContext('2d');
+        if (window.myBarChart) window.myBarChart.destroy();
+        window.myBarChart = new Chart(barCtx, { type: 'bar', data: { labels, datasets: [{ label: 'Daily Focus (hours)', data, backgroundColor: '#f7a047', borderRadius: 5 }] }, options: { maintainAspectRatio: false, responsive: true } });
+        
+        const totalFocus = currentUserData.totalFocusMinutes || 0;
+        const totalSessions = currentUserData.totalSessions || 0;
+        const totalBreak = totalSessions * ((currentUserData.settings?.shortBreakDuration || 300) / 60);
+        const pieCtx = document.getElementById('pieChart').getContext('2d');
+        if(window.myPieChart) window.myPieChart.destroy();
+        window.myPieChart = new Chart(pieCtx, {type: 'pie', data: { labels: ['Work', 'Break'], datasets: [{ data: [totalFocus, totalBreak], backgroundColor: ['#f7a047', '#6c63ff'] }] }, options: { maintainAspectRatio: false, responsive: true }});
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
+        document.getElementById(`${tabName}Container`).classList.add('active');
+    }
+    
+    // START THE APP
     attachMainAppEventListeners();
 });
 
