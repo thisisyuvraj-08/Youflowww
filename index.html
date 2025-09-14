@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Face-api.js for camera features -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-V3CLSWYVTF"></script>
     <script>
@@ -21,9 +23,11 @@
 </head>
 <body>
 
-<!-- Video element for face detection -->
-<video id="video" width="720" height="560" autoplay muted playsinline class="hidden"></video>
+<!-- Video element for face detection (hidden) -->
+<video id="video" width="320" height="240" autoplay muted playsinline style="position: fixed; top: 0; left: 0; opacity: 0; pointer-events: none;"></video>
 <div id="face-detection-status" class="face-status-prompt hidden"></div>
+<div id="sleep-detection-prompt" class="face-status-prompt hidden" style="background-color: var(--secondary-color);">Face not visible</div>
+
 
 <!-- Firebase Auth Modal -->
 <div id="authModal" class="modal visible">
@@ -129,10 +133,9 @@
         <span class="close-btn">&times;</span>
         <h2>Your Progress 📈</h2>
 
-       <!-- This is the new code with the right margin -->
-<a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="margin-left: auto; margin-right: 20px;">
-    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
-</a>
+       <a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="position: absolute; top: 25px; right: 80px;">
+          <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
+       </a>
         
         <div class="tabs">
             <div class="tab active" data-tab="stats">📈 Stats</div>
@@ -185,7 +188,6 @@
                 <input type="number" id="long-break-duration" min="1">
             </div>
 
-            <!-- New Settings -->
             <h3>🎵 Sound Effects</h3>
             <div class="settings-group">
                  <label for="sound-effects-select">Start/End Sounds:</label>
@@ -318,23 +320,17 @@
 </div>
 
 <!-- Audio Elements -->
-<audio id="whiteNoise" loop><source src="whitenoise.mp3" type="audio/mpeg"></audio>
-<audio id="pauseAlertSound"><source src="https://actions.google.com/sounds/v1/ui/close_button_pressed.ogg" type="audio/ogg"></audio>
-<audio id="resumeAlertSound"><source src="https://actions.google.com/sounds/v1/ui/button_press.ogg" type="audio/ogg"></audio>
+<audio id="whiteNoise" loop src="https://www.soundjay.com/nature/sounds/whitenoise.mp3"></audio>
+<audio id="pauseAlertSound" src="https://actions.google.com/sounds/v1/ui/close_button_pressed.ogg"></audio>
+<audio id="resumeAlertSound" src="https://actions.google.com/sounds/v1/ui/button_press.ogg"></audio>
+<audio id="wakeupAlertSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
 
-<!-- Indian Meme Sounds -->
-<audio class="start-sound-indian" src="start-sound1.mp3"></audio>
-<audio class="start-sound-indian" src="start-sound2.mp3"></audio>
-<audio class="start-sound-indian" src="start-sound3.mp3"></audio>
-<audio class="start-sound-indian" src="start-sound4.mp3"></audio>
-<audio class="good-meme-indian" src="good-meme1.mp3"></audio>
-<audio class="good-meme-indian" src="good-meme2.mp3"></audio>
-<audio class="good-meme-indian" src="good-meme3.mp3"></audio>
-<audio class="good-meme-indian" src="good-meme4.mp3"></audio>
-<audio class="bad-meme-indian" src="bad-meme1.mp3"></audio>
-<audio class="bad-meme-indian" src="bad-meme2.mp3"></audio>
-<audio class="bad-meme-indian" src="bad-meme3.mp3"></audio>
-<audio class="bad-meme-indian" src="bad-meme4.mp3"></audio>
+<!-- Indian Sounds -->
+<audio class="start-sound-indian" src="https://github.com/Adithya-2004/sounds/raw/main/start-sound1.mp3"></audio>
+<audio class="start-sound-indian" src="https://github.com/Adithya-2004/sounds/raw/main/start-sound2.mp3"></audio>
+<audio class="good-meme-indian" src="https://github.com/Adithya-2004/sounds/raw/main/good-meme1.mp3"></audio>
+<audio class="bad-meme-indian" src="https://github.com/Adithya-2004/sounds/raw/main/bad-meme1.mp3"></audio>
+
 
 <!-- Non-Indian Sounds -->
 <audio class="start-sound-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/start.mp3"></audio>
@@ -350,8 +346,6 @@
 
 <!-- Libraries and Main Script -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-<!-- Face-api.js for camera features -->
-<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="script.js" type="module"></script>
 
 <!-- Buy Me A Coffee Button -->
@@ -360,5 +354,4 @@
 </a>
 </body>
 </html>
-
 
