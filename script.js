@@ -757,3 +757,26 @@ function switchTab(tabName) {
 }
 
 attachMainAppEventListeners();
+// Minimalist animated intro for Youfloww
+
+function animateIntroMinimal() {
+  const overlay = document.getElementById('introOverlay');
+  const sparkle = overlay.querySelector('.sparkle');
+  // Generate floating sparkle particles
+  for (let i = 0; i < 10; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'sparkle-dot';
+    dot.style.left = `${60 + Math.random()*90}px`;
+    dot.style.top = `${80 + Math.random()*60}px`;
+    dot.style.animationDelay = `${Math.random()*2.2}s`;
+    dot.style.background = `linear-gradient(135deg,#f7a047 0%,#6c63ff 100%)`;
+    sparkle.appendChild(dot);
+  }
+  // Remove overlay after animation
+  setTimeout(() => {
+    overlay.classList.add('fade-out');
+    setTimeout(() => { overlay.style.display = 'none'; }, 1100);
+  }, 3300);
+}
+
+window.addEventListener('DOMContentLoaded', animateIntroMinimal);
