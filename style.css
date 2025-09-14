@@ -202,52 +202,111 @@ button:disabled { background-color: var(--disabled-color) !important; color: var
     position: fixed;
     inset: 0;
     z-index: 3000;
-    background: #111;
+    background: linear-gradient(135deg, #232136 0%, #6c63ff 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.8s cubic-bezier(.71,.07,.63,.98);
+    width: 100vw; height: 100vh;
+    transition: opacity 1.2s cubic-bezier(.71,.07,.63,.98);
+    pointer-events: auto;
 }
-.intro-animation-container {
+
+.welcome-container {
+    text-align: center;
+    position: relative;
+    padding: 48px 60px;
+    border-radius: 22px;
+    background: rgba(36,32,54,0.65);
+    box-shadow: 0 8px 32px rgba(50,30,130,0.22), 0 1.5px 40px 0 #6c63ff70;
+    backdrop-filter: blur(6px);
+}
+
+.welcome-text {
+    font-size: 2.5rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: #fff;
+    margin-bottom: 18px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    width: 100vw;
-    height: 100vh;
+    position: relative;
 }
-#introLaptopAnim {
-    width: 400px;
-    height: 300px;
-    animation: intro-laptop-bounce 1.6s cubic-bezier(.71,.07,.63,.98) forwards;
+
+.site-name {
+    font-size: 3.4rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #f7a047 35%, #6c63ff 85%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    animation: popIn 0.8s cubic-bezier(.62,.21,.63,1.5) 1.2s backwards;
+    text-shadow: 0 4px 18px #6c63ff55, 0 2px 8px #f7a04733;
 }
-@keyframes intro-laptop-bounce {
-    0% { transform: scale(0.92) translateY(50px); opacity: 0; }
-    50% { transform: scale(1.04) translateY(-13px); opacity: 1; }
-    100% { transform: scale(1) translateY(0); opacity: 1; }
+
+@keyframes popIn {
+    0%   { transform: scale(0.7) translateY(60px); opacity:0;}
+    100% { transform: scale(1) translateY(0); opacity:1;}
 }
-/* Laptop screen open animation */
-#introLaptopScreen {
-    transform-origin: 200px 180px;
-    animation: intro-laptop-open 2s cubic-bezier(.71,.07,.63,.98) forwards;
-}
-@keyframes intro-laptop-open {
-    0% { transform: rotateX(0deg); }
-    60% { transform: rotateX(-60deg); }
-    90% { transform: rotateX(-89deg); }
-    100% { transform: rotateX(-89deg); }
-}
-/* App preview fade in */
-#introAppScreen {
-    transition: opacity 0.8s cubic-bezier(.71,.07,.63,.98);
+
+.welcome-logo {
+    width: 90px;
+    height: 90px;
+    margin: 24px auto 0;
     opacity: 0;
+    animation: logoFadeIn 1s cubic-bezier(.7,.15,.51,1.15) 2s forwards;
+    filter: drop-shadow(0 2px 10px #6c63ff88);
+    background: transparent;
+    border-radius: 16px;
 }
-.intro-app-preview {
-    width: 140px; height: 45px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: #1e1e1e; border-radius: 10px; border: 1px solid #333; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+
+@keyframes logoFadeIn {
+    0%   { opacity: 0; transform: scale(0.7);}
+    100% { opacity: 1; transform: scale(1);}
 }
-.intro-app-logo { font-size: 1.2rem; font-weight: bold; color: #f7a047; }
-.intro-app-timer { font-size: 1.5rem; font-weight: bold; color: #fff; }
-.intro-app-btn { margin-top: 2px; font-size: 0.95rem; background: #5547f7; color: #fff; border-radius: 6px; padding: 2px 12px; }
+
+.typing {
+    display: inline-block;
+    border-right: 2px solid #f7a047;
+    white-space: nowrap;
+    overflow: hidden;
+    width: 0;
+    animation: typing 1.2s steps(13, end) 0.1s forwards, blink-caret 1s step-end infinite;
+}
+@keyframes typing {
+    from { width: 0; }
+    to { width: 10.8ch; }
+}
+@keyframes blink-caret {
+    0%, 100% { border-color: #f7a047;}
+    50% { border-color: transparent;}
+}
+
+/* Sparkle/floating particles effect */
+.sparkle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0; height: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+.sparkle-dot {
+    position: absolute;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#f7a047 0%,#6c63ff 100%);
+    opacity: 0.65;
+    width: 12px; height: 12px;
+    filter: blur(0.5px);
+    animation: sparkleAnim 2.2s linear infinite;
+}
+@keyframes sparkleAnim {
+    0%   { opacity:0; transform: scale(0.7) translateY(0);}
+    25%  { opacity:0.8;}
+    60%  { opacity:0.8;}
+    100% { opacity:0; transform: scale(1.6) translateY(-55px);}
+}
 
 #introOverlay.fade-out {
     opacity: 0;
@@ -477,115 +536,4 @@ body.focus-mode #focusModeUI { display: flex; }
 @keyframes blink {
     0%, 92%, 100% { ry: 4; }
     93%, 97% { ry: 0.8; }
-}
-
-#introOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: linear-gradient(135deg, #232136 0%, #6c63ff 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100vw; height: 100vh;
-  transition: opacity 1.2s cubic-bezier(.71,.07,.63,.98);
-  pointer-events: auto;
-}
-
-.welcome-container {
-  text-align: center;
-  position: relative;
-  padding: 50px 60px;
-  border-radius: 22px;
-  background: rgba(36,32,54,0.65);
-  box-shadow: 0 8px 32px rgba(50,30,130,0.22), 0 1.5px 40px 0 #6c63ff70;
-  backdrop-filter: blur(6px);
-}
-
-.welcome-text {
-  font-size: 2.5rem;
-  font-weight: 600;
-  letter-spacing: 1.5px;
-  color: #fff;
-  margin-bottom: 18px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-}
-
-.site-name {
-  font-size: 3.4rem;
-  font-weight: 700;
-  background: linear-gradient(90deg, #f7a047 35%, #6c63ff 85%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: popIn 0.8s cubic-bezier(.62,.21,.63,1.5) 1.2s backwards;
-  text-shadow: 0 4px 18px #6c63ff55, 0 2px 8px #f7a04733;
-}
-
-@keyframes popIn {
-  0%   { transform: scale(0.7) translateY(60px); opacity:0;}
-  100% { transform: scale(1) translateY(0); opacity:1;}
-}
-
-.welcome-logo {
-  width: 90px;
-  height: 90px;
-  margin: 20px auto 0;
-  opacity: 0;
-  animation: logoFadeIn 1s cubic-bezier(.7,.15,.51,1.15) 2s forwards;
-  filter: drop-shadow(0 2px 10px #6c63ff88);
-}
-
-@keyframes logoFadeIn {
-  0%   { opacity: 0; transform: scale(0.7);}
-  100% { opacity: 1; transform: scale(1);}
-}
-
-.typing {
-  display: inline-block;
-  border-right: 2px solid #f7a047;
-  white-space: nowrap;
-  overflow: hidden;
-  width: 0;
-  animation: typing 1.2s steps(13, end) 0.1s forwards, blink-caret 1s step-end infinite;
-}
-
-@keyframes typing {
-  from { width: 0; }
-  to { width: 10.8ch; }
-}
-@keyframes blink-caret {
-  0%, 100% { border-color: #f7a047;}
-  50% { border-color: transparent;}
-}
-
-/* Sparkle/floating particles effect */
-.sparkle {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 0; height: 0;
-  pointer-events: none;
-}
-.sparkle-dot {
-  position: absolute;
-  border-radius: 50%;
-  background: linear-gradient(135deg,#f7a047 0%,#6c63ff 100%);
-  opacity: 0.65;
-  width: 12px; height: 12px;
-  filter: blur(0.5px);
-  animation: sparkleAnim 2s linear infinite;
-}
-@keyframes sparkleAnim {
-  0%   { opacity:0; transform: scale(0.7) translateY(0);}
-  25%  { opacity:0.8;}
-  60%  { opacity:0.8;}
-  100% { opacity:0; transform: scale(1.6) translateY(-55px);}
-}
-
-#introOverlay.fade-out {
-  opacity: 0;
-  pointer-events: none;
 }
