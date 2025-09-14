@@ -19,6 +19,34 @@
     </script>
 </head>
 <body>
+<!-- =================== NEW: Animated Intro Overlay =================== -->
+<div id="introOverlay">
+    <div class="intro-animation-container">
+        <svg id="introLaptopAnim" width="400" height="300" viewBox="0 0 400 300">
+            <!-- Person (head) -->
+            <circle cx="200" cy="100" r="40" fill="#F7A047"/>
+            <!-- Body -->
+            <rect x="170" y="140" width="60" height="80" fill="#FFDCA7"/>
+            <!-- Arms (static) -->
+            <rect x="155" y="180" width="20" height="70" rx="10" fill="#FFDCA7"/>
+            <rect x="225" y="180" width="20" height="70" rx="10" fill="#FFDCA7"/>
+            <!-- Laptop base -->
+            <rect id="introLaptopBase" x="120" y="230" width="160" height="25" rx="12" fill="#222"/>
+            <!-- Laptop screen (animated open) -->
+            <rect id="introLaptopScreen" x="120" y="180" width="160" height="55" rx="10" fill="#333"/>
+            <!-- App preview inside laptop (hidden, will zoom in) -->
+            <foreignObject id="introAppScreen" x="130" y="185" width="140" height="45" style="opacity:0;">
+                <div class="intro-app-preview">
+                    <span class="intro-app-logo">YouFloww</span>
+                    <span class="intro-app-timer">25:00</span>
+                    <span class="intro-app-btn">Start</span>
+                </div>
+            </foreignObject>
+        </svg>
+    </div>
+</div>
+<!-- =================== End Animated Intro Overlay =================== -->
+
 <!-- YouTube Video Background - always at back -->
 <div id="video-background-container"></div>
 <video id="video" width="720" height="560" autoplay muted playsinline class="hidden"></video>
@@ -49,6 +77,14 @@
                 <button type="submit">Log In</button>
                 <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
             </form>
+            <!-- =================== NEW: Guest Mode Button and Warning =================== -->
+            <button id="continueWithoutSignupBtn" class="auth-btn-guest" type="button">
+                Continue without signing up
+            </button>
+            <p id="guestWarning" class="auth-warning hidden">
+                <strong>Warning:</strong> Your stats and tasks will NOT be saved after you close this tab.
+            </p>
+            <!-- =================== End Guest Mode Button and Warning =================== -->
             <p id="auth-error" class="error-message"></p>
         </div>
     </div>
