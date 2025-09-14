@@ -757,3 +757,101 @@ function switchTab(tabName) {
 }
 
 attachMainAppEventListeners();
+// Intro animation for YouFloww (Poppr-style)
+// Place this after your SVG, or in your main JS file
+
+function animateIntro() {
+  const overlay = document.getElementById('introOverlay');
+  const svg = document.getElementById('introScene');
+  const person = svg.getElementById('person');
+  const laptopLid = svg.getElementById('laptop-lid');
+  const logoOnLid = svg.getElementById('logo-on-lid');
+  const laptopBase = svg.getElementById('laptop-base');
+  const appScreen = svg.getElementById('app-screen');
+  const armLeft = svg.getElementById('arm-left');
+  const armRight = svg.getElementById('arm-right');
+  const chair = svg.getElementById('chair');
+  const legs = [svg.getElementById('leg-left'), svg.getElementById('leg-right')];
+
+  // Step 1: Person walks in from left
+  person.setAttribute('transform', 'translate(-250,0)');
+  chair.setAttribute('transform', 'translate(-250,0)');
+  legs.forEach(leg => leg.setAttribute('transform', 'translate(-250,0)'));
+  setTimeout(() => {
+    // Animate walk-in (slide to table)
+    let start = null;
+    function walkInAnim(ts) {
+      if (!start) start = ts;
+      let progress = Math.min((ts - start) / 900, 1);
+      let tx = -250 + progress * 250;
+      person.setAttribute('transform', `translate(${tx},0)`);
+      chair.setAttribute('transform', `translate(${tx},0)`);
+      legs.forEach(leg => leg.setAttribute('transform', `translate(${tx},0)`));
+      if (progress < 1) window.requestAnimationFrame(walkInAnim);
+      else setTimeout(sitDown, 250);
+    }
+    window.requestAnimationFrame(walkInAnim);
+  }, 400);
+
+  // Step 2: Sit down (arms/legs reposition)
+  function sitDown() {
+    // Animate arms to sitting pose
+    armLeft.setAttribute('x', '470');
+    armLeft.setAttribute('y', '445');
+    armLeft.setAttribute('height', '40');
+    armRight.setAttribute('x', '515');
+    armRight.setAttribute('y', '445');
+    armRight.setAttribute('height', '40');
+    // Animate legs slightly
+    legs[0].setAttribute('y', '525');
+    legs[1].setAttribute('y', '525');
+    setTimeout(openLaptop, 700);
+  }
+
+  // Step 3: Open laptop lid (rotate up)
+  function openLaptop() {
+    let start = null;
+    function lidAnim(ts) {
+      if (!start) start = ts;
+      let progress = Math.min((ts - start) / 700, 1);
+      let rotate = -60 + progress * 60; // from -60deg (closed) to 0deg (open)
+      laptopLid.setAttribute('transform', `rotate(${rotate},600,400)`);
+      logoOnLid.setAttribute('transform', `rotate(${rotate},600,400)`);
+      if (progress < 1) window.requestAnimationFrame(lidAnim);
+      else {
+        logoOnLid.setAttribute('opacity', '1');
+        setTimeout(zoomToScreen, 600);
+      }
+    }
+    laptopLid.setAttribute('transform', 'rotate(-60,600,400)');
+    logoOnLid.setAttribute('transform', 'rotate(-60,600,400)');
+    window.requestAnimationFrame(lidAnim);
+  }
+
+  // Step 4: Fade in app screen, zoom in
+  function zoomToScreen() {
+    appScreen.setAttribute('opacity', '1');
+    // Animate zoom-in to laptop screen
+    let start = null;
+    function zoomAnim(ts) {
+      if (!start) start = ts;
+      let progress = Math.min((ts - start) / 1200, 1);
+      // Scale & move SVG to focus on laptop
+      let scale = 1 + progress * 2.5;
+      let tx = - (progress * 370);
+      let ty = - (progress * 280);
+      svg.style.transform = `scale(${scale}) translate(${tx}px,${ty}px)`;
+      if (progress < 1) window.requestAnimationFrame(zoomAnim);
+      else setTimeout(fadeOutOverlay, 900);
+    }
+    window.requestAnimationFrame(zoomAnim);
+  }
+
+  // Step 5: Fade out overlay
+  function fadeOutOverlay() {
+    overlay.classList.add('fade-out');
+    setTimeout(() => { overlay.style.display = 'none'; }, 1200);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', animateIntro);
