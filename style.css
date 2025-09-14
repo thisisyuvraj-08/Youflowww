@@ -478,33 +478,3 @@ body.focus-mode #focusModeUI { display: flex; }
     0%, 92%, 100% { ry: 4; }
     93%, 97% { ry: 0.8; }
 }
-#introOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: #232136;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100vw; height: 100vh;
-  transition: opacity 1.2s cubic-bezier(.71,.07,.63,.98);
-  pointer-events: auto;
-}
-.intro-anim-container {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-#introScene {
-  max-width: 780px;
-  width: 80vw;
-  height: 60vh;
-  display: block;
-  margin: auto;
-}
-#introOverlay.fade-out {
-  opacity: 0;
-  pointer-events: none;
-}
