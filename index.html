@@ -19,6 +19,8 @@
     </script>
 </head>
 <body>
+<!-- YouTube Video Background - always at back -->
+<div id="video-background-container"></div>
 
 <!-- Video element for face detection -->
 <video id="video" width="720" height="560" autoplay muted playsinline class="hidden"></video>
@@ -237,10 +239,9 @@
     <div class="progress-bar-container"><div id="monthProgressBar" class="progress-bar"></div></div>
     <div class="progress-label"><span>Year</span><span id="yearProgressPercent"></span></div>
     <div class="progress-bar-container"><div id="yearProgressBar" class="progress-bar"></div></div>
-</aside>
+</div>
 
 <div id="ambient-container"></div>
-<div id="video-background-container"></div>
 
 <div id="focusModeUI">
     <div id="focusModeTimer"></div>
@@ -260,13 +261,10 @@
     </div>
 </div>
 
-<!-- ...other code above... -->
-
-<!-- New Session Review Modal -->
+<!-- New Session Review Modal with animated assistant -->
 <div id="reviewModal" class="modal">
     <div class="review-modal-content">
         <div class="assistant-character animated-walk-in">
-            <!-- Animated SVG Character -->
             <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
                 <!-- Body -->
                 <ellipse id="body" cx="60" cy="80" rx="28" ry="25" fill="#6c63ff"/>
@@ -306,7 +304,6 @@
         <button id="closeReviewModalBtn">Keep Flowing!</button>
     </div>
 </div>
-<!-- ...other code below... -->
 
 <!-- Floating Video Player -->
 <div id="pip-player-container" class="hidden">
