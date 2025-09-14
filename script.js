@@ -4,26 +4,65 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, on
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js";
 
+// ============ Minimalist Animated Intro Logic ============
+function playMinimalistIntro() {
+    const overlay = document.getElementById('introOverlay');
+    const sparkle = overlay.querySelector('.sparkle');
+    for (let i = 0; i < 12; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'sparkle-dot';
+        dot.style.left = `${60 + Math.random()*90}px`;
+        dot.style.top = `${80 + Math.random()*60}px`;
+        dot.style.animationDelay = `${Math.random()*2.2}s`;
+        dot.style.background = `linear-gradient(135deg,#f7a047 0%,#6c63ff 100%)`;
+        sparkle.appendChild(dot);
+    }
+    setTimeout(() => {
+        overlay.classList.add('fade-out');
+        setTimeout(() => { overlay.style.display = 'none'; }, 1200);
+    }, 3400);
+}
+window.addEventListener('DOMContentLoaded', playMinimalistIntro);
+
 // ============ NEW: Guest Mode State ============
 let isGuestMode = false;
 
-// ============ NEW: Animated Intro Logic ============
-function playIntroAnimation() {
-    const overlay = document.getElementById('introOverlay');
-    const laptopScreen = document.getElementById('introLaptopScreen');
-    const appScreen = document.getElementById('introAppScreen');
-    setTimeout(() => { // Open laptop
-        laptopScreen.style.animationPlayState = "running";
-        setTimeout(() => { // Fade in app preview
-            appScreen.style.opacity = "1";
-            setTimeout(() => { // Fade out intro + zoom in app
-                overlay.classList.add('fade-out');
-                setTimeout(() => { overlay.style.display = 'none'; }, 800);
-            }, 1200);
-        }, 1200);
-    }, 700);
+// ============ NEW: Guest Mode Handler ============
+document.addEventListener('DOMContentLoaded', () => {
+    const guestBtn = document.getElementById("continueWithoutSignupBtn");
+    const guestWarning = document.getElementById("guestWarning");
+    if (guestBtn) {
+        guestBtn.addEventListener('click', () => {
+            isGuestMode = true;
+            DOMElements.appContainer.classList.remove('hidden');
+            DOMElements.authModal.classList.remove('visible');
+            guestWarning.classList.remove('hidden');
+            currentUserData = loadGuestData() || getDefaultUserData();
+            initializeAppState();
+        });
+    }
+});
+
+function getDefaultUserData() {
+    return {
+        profileName: "Floww User",
+        totalFocusMinutes: 0,
+        totalSessions: 0,
+        streakCount: 0,
+        lastStreakDate: null,
+        weeklyFocus: {},
+        todos: [],
+        settings: {
+            workDuration: 25 * 60,
+            shortBreakDuration: 5 * 60,
+            longBreakDuration: 15 * 60,
+            soundProfile: "indian",
+            isAccountabilityOn: false,
+            isSleepDetectionOn: false,
+        },
+        theme: { backgroundPath: null, youtubeVideoId: null }
+    };
 }
-window.addEventListener('DOMContentLoaded', playIntroAnimation);
 
 // ===================================================================================
 // FIREBASE INITIALIZATION
@@ -149,41 +188,6 @@ onAuthStateChanged(auth, user => {
     }
 });
 
-// ============ NEW: Guest Mode Handler ============
-document.addEventListener('DOMContentLoaded', () => {
-    const guestBtn = document.getElementById("continueWithoutSignupBtn");
-    const guestWarning = document.getElementById("guestWarning");
-    if (guestBtn) {
-        guestBtn.addEventListener('click', () => {
-            isGuestMode = true;
-            DOMElements.appContainer.classList.remove('hidden');
-            DOMElements.authModal.classList.remove('visible');
-            guestWarning.classList.remove('hidden');
-            currentUserData = loadGuestData() || getDefaultUserData();
-            initializeAppState();
-        });
-    }
-});
-function getDefaultUserData() {
-    return {
-        profileName: "Floww User",
-        totalFocusMinutes: 0,
-        totalSessions: 0,
-        streakCount: 0,
-        lastStreakDate: null,
-        weeklyFocus: {},
-        todos: [],
-        settings: {
-            workDuration: 25 * 60,
-            shortBreakDuration: 5 * 60,
-            longBreakDuration: 15 * 60,
-            soundProfile: "indian",
-            isAccountabilityOn: false,
-            isSleepDetectionOn: false,
-        },
-        theme: { backgroundPath: null, youtubeVideoId: null }
-    };
-}
 function saveUserData() {
     if (isGuestMode) {
         localStorage.setItem('youfloww_guest', JSON.stringify(currentUserData));
@@ -757,26 +761,3 @@ function switchTab(tabName) {
 }
 
 attachMainAppEventListeners();
-// Minimalist animated intro for Youfloww
-
-function animateIntroMinimal() {
-  const overlay = document.getElementById('introOverlay');
-  const sparkle = overlay.querySelector('.sparkle');
-  // Generate floating sparkle particles
-  for (let i = 0; i < 10; i++) {
-    const dot = document.createElement('div');
-    dot.className = 'sparkle-dot';
-    dot.style.left = `${60 + Math.random()*90}px`;
-    dot.style.top = `${80 + Math.random()*60}px`;
-    dot.style.animationDelay = `${Math.random()*2.2}s`;
-    dot.style.background = `linear-gradient(135deg,#f7a047 0%,#6c63ff 100%)`;
-    sparkle.appendChild(dot);
-  }
-  // Remove overlay after animation
-  setTimeout(() => {
-    overlay.classList.add('fade-out');
-    setTimeout(() => { overlay.style.display = 'none'; }, 1100);
-  }, 3300);
-}
-
-window.addEventListener('DOMContentLoaded', animateIntroMinimal);
