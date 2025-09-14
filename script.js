@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
         apiKey: "AIzaSyBCi5Ea0r2c9tdgk_6RnpSuqDV5CE3nGbo",
         authDomain: "youfloww2.firebaseapp.com",
         projectId: "youfloww2",
-        storageBucket: "youfloww2.firebasestorage.app",
+        storageBucket: "youfloww2.firbasestorage.app",
         messagingSenderId: "816836186464",
         appId: "1:816836186464:web:e1f816020e6798f9b3ce05",
         measurementId: "G-TBY81E0BC4"
@@ -32,8 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let timerInterval, isRunning = false, isWorkSession = true, sessionCount = 0;
     let endTime = 0, timeLeft;
     let workDuration, shortBreakDuration, longBreakDuration;
-    
-    // AMBIENCE STATE
+    let sessionStartTime = null;
+    let totalAwayTime = 0;
+    let lastPauseTimestamp = null;
+    let pauseWasManual = true;
     let animationFrameId = null;
     let isSnowActive = false, isRainActive = false, isSakuraActive = false;
     let lastSnowSpawn = 0, lastRainSpawn = 0, lastSakuraSpawn = 0;
@@ -46,10 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let isSleepDetectionOn = false;
     let awayTimerStart = null;
     let eyesClosedTimerStart = null;
-    let sessionStartTime = null;
-    let totalAwayTime = 0;
-    let lastPauseTimestamp = null;
-    let pauseWasManual = true;
     let modelsLoaded = false; // Flag to check if face-api models are loaded
 
     // ===================================================================================
@@ -224,6 +222,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateTimerDisplay();
             }
         }, 1000);
+
+        // Start camera only when session starts (if features enabled)
+        if ((isAccountabilityOn || isSleepDetectionOn) && !DOMElements.video.srcObject) {
+            startVideo();
+        }
     }
 
     function pauseTimer(isAuto = false) {
@@ -281,6 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleEndOfWorkSession(minutesFocused, sessionCompleted) {
         stopFaceDetection();
+        stopVideo();
         if (minutesFocused > 0) {
             currentUserData.totalFocusMinutes = (currentUserData.totalFocusMinutes || 0) + minutesFocused;
             currentUserData.totalSessions = (currentUserData.totalSessions || 0) + 1;
@@ -304,10 +308,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modelsLoaded) return;
         const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
         try {
-            console.log("Loading FaceAPI models...");
             await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
             await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
-            console.log("FaceAPI models loaded successfully.");
             modelsLoaded = true;
         } catch (error) {
             console.error("Error loading FaceAPI models:", error);
@@ -321,9 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
             DOMElements.video.srcObject = stream;
         } catch (err) {
-            console.error("Camera access denied:", err);
             alert("Camera access is required for Accountability features. Please allow access and refresh.");
-            // Turn off toggles if permission denied
             DOMElements.settings.accountabilityToggle.checked = false;
             DOMElements.settings.sleepDetectionToggle.checked = false;
             isAccountabilityOn = false;
@@ -404,6 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (Date.now() - eyesClosedTimerStart > 10000) {
                     pauseTimer(true); // Auto-pause for sleep
                     showFaceStatusPrompt("Timer paused due to inactivity.");
+                    playRandomSound('bad');
                 }
             } else {
                 if (eyesClosedTimerStart) {
@@ -413,11 +414,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else if (isSleepDetectionOn && !faceDetected) {
-            // If sleep detection is on but no face is seen, treat it like accountability
-            // This prevents gaming sleep detection by just leaving the screen
-            if (!awayTimerStart) {
-                awayTimerStart = Date.now();
-            }
+            // If sleep detection is enabled but no face is seen
+            showFaceStatusPrompt("Face not visible");
+            // Timer should continue
         }
     }
 
@@ -623,8 +622,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Settings
         document.getElementById("saveSettingsBtn").addEventListener('click', saveSettingsToData);
-        DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => { isAccountabilityOn = e.target.checked; if (isAccountabilityOn) startVideo(); else if (!isSleepDetectionOn) stopVideo(); });
-        DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => { isSleepDetectionOn = e.target.checked; if (isSleepDetectionOn) startVideo(); else if (!isAccountabilityOn) stopVideo(); });
+        DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => { isAccountabilityOn = e.target.checked; });
+        DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => { isSleepDetectionOn = e.target.checked; });
 
         // Store / Themes
         document.getElementById('storeItems').addEventListener('click', (e) => { 
