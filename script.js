@@ -5,7 +5,6 @@ import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/fireb
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js";
 
 document.addEventListener('DOMContentLoaded', () => {
-
     // ===================================================================================
     // FIREBASE INITIALIZATION
     // ===================================================================================
@@ -132,8 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (docSnap.exists()) {
             currentUserData = docSnap.data();
         } else {
-            // This case handles a newly signed-up user who doesn't have a doc yet
-            // The doc will be created by the signup function
             console.log("No user document found. A new one will be created on first data save.");
         }
         await initializeAppState();
@@ -178,9 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function playRandomSound(type) {
         const soundProfile = currentUserData.settings?.soundProfile;
         if (soundProfile === 'off') return;
-
         let soundSet = (soundProfile === 'indian') ? DOMElements.sounds.indian[type] : DOMElements.sounds.nonIndian[type];
-        
         if (soundSet && soundSet.length > 0) {
             const sound = soundSet[Math.floor(Math.random() * soundSet.length)];
             sound.currentTime = 0;
@@ -223,7 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 1000);
 
-        // Start camera only when session starts (if features enabled)
         if ((isAccountabilityOn || isSleepDetectionOn) && !DOMElements.video.srcObject) {
             startVideo();
         }
@@ -236,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!isAuto) {
             pauseWasManual = true;
             DOMElements.sounds.pauseAlert.play();
-            stopFaceDetection(); // Stop detection on manual pause
+            stopFaceDetection();
         } else {
             pauseWasManual = false;
         }
@@ -270,16 +264,14 @@ document.addEventListener('DOMContentLoaded', () => {
         handleEndOfWorkSession(minutesFocused, true);
         showCompletionPopup();
         if (isAccountabilityOn || isSleepDetectionOn) showSessionReview();
-
         sessionCount++;
         isWorkSession = false;
         timeLeft = (sessionCount % 4 === 0) ? longBreakDuration : shortBreakDuration;
-        sessionStartTime = null; // Reset for break
+        sessionStartTime = null;
         totalAwayTime = 0;
-        
         updateTimerDisplay();
         updateUIState();
-        startTimer(); // Auto-start next session (break)
+        startTimer();
     }
 
     function handleEndOfWorkSession(minutesFocused, sessionCompleted) {
@@ -291,13 +283,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().slice(0, 10);
             if (!currentUserData.weeklyFocus) currentUserData.weeklyFocus = {};
             currentUserData.weeklyFocus[today] = (currentUserData.weeklyFocus[today] || 0) + minutesFocused;
-            
-            if (sessionCompleted && workDuration / 60 >= 25) { /* updateStreak(); */ }
         }
-        
         if (minutesFocused >= 20) playRandomSound('good');
         else if(minutesFocused > 0) playRandomSound('bad');
-
         saveUserData();
     }
     
@@ -312,14 +300,13 @@ document.addEventListener('DOMContentLoaded', () => {
             await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
             modelsLoaded = true;
         } catch (error) {
-            console.error("Error loading FaceAPI models:", error);
             alert("Could not load accountability models. Please check your connection and refresh.")
         }
     }
 
     async function startVideo() {
         try {
-            if (DOMElements.video.srcObject) return; // Already running
+            if (DOMElements.video.srcObject) return;
             const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
             DOMElements.video.srcObject = stream;
         } catch (err) {
@@ -341,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startFaceDetection() {
         if (!faceApiInterval && (isAccountabilityOn || isSleepDetectionOn)) {
-            faceApiInterval = setInterval(handleFaceDetection, 500); // Check every 500ms
+            faceApiInterval = setInterval(handleFaceDetection, 500);
         }
     }
 
@@ -353,12 +340,11 @@ document.addEventListener('DOMContentLoaded', () => {
         eyesClosedTimerStart = null;
     }
 
-    const EYE_AR_THRESH = 0.22; // Threshold for eye closure
+    const EYE_AR_THRESH = 0.22;
 
     function getEyeAspectRatio(landmarks) {
         const leftEye = landmarks.getLeftEye();
         const rightEye = landmarks.getRightEye();
-
         const eyeAR = (eye) => {
             const A = faceapi.euclideanDistance([eye[1].x, eye[1].y], [eye[5].x, eye[5].y]);
             const B = faceapi.euclideanDistance([eye[2].x, eye[2].y], [eye[4].x, eye[4].y]);
@@ -370,31 +356,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleFaceDetection() {
         if (!modelsLoaded || !isRunning || DOMElements.video.paused || DOMElements.video.ended || !DOMElements.video.srcObject) return;
-
         const detections = await faceapi.detectAllFaces(DOMElements.video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 })).withFaceLandmarks(true);
-
         const faceDetected = detections.length > 0;
 
-        // Accountability Partner Logic
         if (isAccountabilityOn) {
             if (!faceDetected) {
                 if (!awayTimerStart) {
                     awayTimerStart = Date.now();
                     showFaceStatusPrompt("Are you there? Timer will pause soon...");
                 } else if (Date.now() - awayTimerStart > 15000) {
-                    pauseTimer(true); // Auto-pause
+                    pauseTimer(true);
                     showFaceStatusPrompt("Timer paused. Come back to resume.");
                 }
             } else {
-                if (awayTimerStart) { // User returned
+                if (awayTimerStart) {
                     awayTimerStart = null;
                     hideFaceStatusPrompt();
-                    if (!isRunning && !pauseWasManual) startTimer(true); // Auto-resume
+                    if (!isRunning && !pauseWasManual) startTimer(true);
                 }
             }
         }
         
-        // Sleep Detection Logic
         if (isSleepDetectionOn && faceDetected) {
             const ear = getEyeAspectRatio(detections[0].landmarks);
             if (ear < EYE_AR_THRESH) {
@@ -402,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     eyesClosedTimerStart = Date.now();
                     showFaceStatusPrompt("Feeling sleepy? Timer will pause.");
                 } else if (Date.now() - eyesClosedTimerStart > 10000) {
-                    pauseTimer(true); // Auto-pause for sleep
+                    pauseTimer(true);
                     showFaceStatusPrompt("Timer paused due to inactivity.");
                     playRandomSound('bad');
                 }
@@ -414,9 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else if (isSleepDetectionOn && !faceDetected) {
-            // If sleep detection is enabled but no face is seen
             showFaceStatusPrompt("Face not visible");
-            // Timer should continue
         }
     }
 
@@ -498,13 +478,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function showSessionReview() {
         if (!sessionStartTime || !isWorkSession) return;
-        
         const totalDurationMs = Date.now() - sessionStartTime;
-        // Finalize away time calculation
         const currentPauseDuration = lastPauseTimestamp ? Date.now() - lastPauseTimestamp : 0;
         const awayTimeMs = totalAwayTime + currentPauseDuration;
         const focusTimeMs = totalDurationMs - awayTimeMs;
-
         const formatMs = (ms) => {
             const totalSeconds = Math.max(0, Math.floor(ms / 1000));
             const minutes = Math.floor(totalSeconds / 60);
@@ -515,7 +492,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('reviewFocusTime').textContent = formatMs(focusTimeMs);
         document.getElementById('reviewAwayTime').textContent = formatMs(awayTimeMs);
         document.getElementById('reviewTotalDuration').textContent = formatMs(totalDurationMs);
-
         DOMElements.modals.review.classList.add('visible');
     }
 
@@ -589,43 +565,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // EVENT LISTENERS
     // ===================================================================================
     function attachMainAppEventListeners() {
-        // Timer
         DOMElements.playPauseBtn.addEventListener('click', () => isRunning ? pauseTimer() : startTimer(true));
         DOMElements.resetBtn.addEventListener('click', resetTimer);
         DOMElements.endSessionBtn.addEventListener('click', endSession);
-
-        // Header
         document.getElementById('changeNameBtn').addEventListener('click', () => { const newName = prompt("Enter new name:", currentUserData.profileName); if (newName && newName.trim()) { currentUserData.profileName = newName.trim(); saveUserData(); DOMElements.profile.nameDisplay.textContent = newName.trim(); } });
         document.getElementById('statsBtn').addEventListener('click', openStats);
-
-        // Modals
         DOMElements.modals.stats.querySelector('.close-btn').addEventListener('click', closeStats);
         document.getElementById('closeCompletionModalBtn').addEventListener('click', () => DOMElements.modals.completion.classList.remove('visible'));
         document.getElementById('closeReviewModalBtn').addEventListener('click', () => DOMElements.modals.review.classList.remove('visible'));
         document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
-        
-        // Features
         document.getElementById("noiseBtn").addEventListener('click', (e) => { const noise = DOMElements.sounds.whiteNoise; noise.paused ? noise.play() : noise.pause(); e.target.textContent = noise.paused ? "🎧 Play Noise" : "🎧 Stop Noise"; });
         document.getElementById("snowBtn").addEventListener('click', () => toggleAmbience('snow'));
         document.getElementById("rainBtn").addEventListener('click', () => toggleAmbience('rain'));
         document.getElementById("sakuraBtn").addEventListener('click', () => toggleAmbience('sakura'));
-        
-        // Focus Mode
         document.getElementById("focusModeBtn").addEventListener('click', toggleFocusMode);
         DOMElements.focusMode.playPauseBtn.addEventListener('click', () => isRunning ? pauseTimer() : startTimer(true));
         DOMElements.focusMode.exitBtn.addEventListener('click', toggleFocusMode);
-
-        // To-Do List
         document.getElementById("add-todo-btn").addEventListener('click', addTodo);
         document.querySelector('.clear-todos-btn').addEventListener('click', clearTodos);
         document.getElementById('todo-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTodo(); });
-
-        // Settings
         document.getElementById("saveSettingsBtn").addEventListener('click', saveSettingsToData);
         DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => { isAccountabilityOn = e.target.checked; });
         DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => { isSleepDetectionOn = e.target.checked; });
-
-        // Store / Themes
         document.getElementById('storeItems').addEventListener('click', (e) => { 
             if (e.target.tagName !== 'BUTTON') return;
             const item = e.target.closest('.store-item'); 
@@ -641,10 +602,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (videoId) { currentUserData.theme = { youtubeVideoId: videoId, backgroundPath: null }; setYoutubeBackground(videoId); saveUserData(); } 
             else if (url) { alert("Please enter a valid YouTube URL."); }
         });
-
-        // Profile / Danger Zone
         document.getElementById("clearDataBtn").addEventListener('click', async () => { if (confirm("DANGER: This will reset ALL your stats and settings permanently.")) { 
-            const soundProfile = currentUserData.settings.soundProfile; // Preserve sound profile
+            const soundProfile = currentUserData.settings.soundProfile;
             currentUserData = {
                 profileName: "Floww User", totalFocusMinutes: 0, totalSessions: 0, streakCount: 0, lastStreakDate: null, weeklyFocus: {}, todos: [],
                 settings: { workDuration: 25 * 60, shortBreakDuration: 5 * 60, longBreakDuration: 15 * 60, soundProfile: soundProfile },
@@ -654,23 +613,18 @@ document.addEventListener('DOMContentLoaded', () => {
             await initializeAppState();
             updateTimerDisplay();
         }});
-
-        // Auth
         document.getElementById('signup-form').addEventListener('submit', async (e) => { 
             e.preventDefault(); 
             DOMElements.authError.textContent = ''; 
             const email = document.getElementById('signup-email').value; 
             const password = document.getElementById('signup-password').value; 
             const location = document.getElementById('signup-location').value;
-
             if (!location) {
                 DOMElements.authError.textContent = 'Please select where you are from.';
                 return;
             }
-
             try { 
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                // Create a new user document in Firestore
                 userDataRef = doc(db, "users", userCredential.user.uid);
                 currentUserData = {
                     profileName: "Floww User",
@@ -681,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     weeklyFocus: {},
                     todos: [],
                     settings: {
-                        workDuration: 25 * 60, // Default 25 mins
+                        workDuration: 25 * 60,
                         shortBreakDuration: 5 * 60,
                         longBreakDuration: 15 * 60,
                         soundProfile: location,
@@ -692,7 +646,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 await setDoc(userDataRef, currentUserData);
                 await initializeAppState();
-
             } catch (error) { 
                 DOMElements.authError.textContent = error.message; 
             } 
@@ -711,8 +664,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
         document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
         document.getElementById('show-signup').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
-
-        // Global
         setInterval(updateCornerWidget, 30000);
     }
     
@@ -724,7 +675,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const barCtx = document.getElementById('barChart').getContext('2d');
         if (window.myBarChart) window.myBarChart.destroy();
         window.myBarChart = new Chart(barCtx, { type: 'bar', data: { labels, datasets: [{ label: 'Daily Focus (hours)', data, backgroundColor: '#f7a047', borderRadius: 5 }] }, options: { maintainAspectRatio: false, responsive: true } });
-        
         const totalFocus = currentUserData.totalFocusMinutes || 0;
         const totalSessions = currentUserData.totalSessions || 0;
         const totalBreak = totalSessions * ((currentUserData.settings?.shortBreakDuration || 300) / 60);
@@ -740,6 +690,5 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(`${tabName}Container`).classList.add('active');
     }
     
-    // START THE APP
     attachMainAppEventListeners();
 });
