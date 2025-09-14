@@ -43,8 +43,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // ACCOUNTABILITY AI STATE
     const faceapi = window.faceapi;
     let faceApiInterval = null;
+    window.faceApiInterval = faceApiInterval; // Make interval global for debugging
     let isAccountabilityOn = false;
+    window.isAccountabilityOn = isAccountabilityOn; // Debug global
     let isSleepDetectionOn = false;
+    window.isSleepDetectionOn = isSleepDetectionOn; // Debug global
     let awayTimerStart = null;
     let eyesClosedTimerStart = null;
     let modelsLoaded = false; // Flag to check if face-api models are loaded
@@ -197,10 +200,10 @@ document.addEventListener('DOMContentLoaded', () => {
             totalAwayTime += Date.now() - lastPauseTimestamp;
             lastPauseTimestamp = null;
         }
-
         endTime = Date.now() + timeLeft * 1000;
         updateUIState();
 
+        // START ACCOUNTABILITY AND SLEEP DETECTION IF ENABLED
         if (isAccountabilityOn || isSleepDetectionOn) {
             startFaceDetection();
         }
@@ -315,6 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
             DOMElements.settings.sleepDetectionToggle.checked = false;
             isAccountabilityOn = false;
             isSleepDetectionOn = false;
+            window.isAccountabilityOn = isAccountabilityOn;
+            window.isSleepDetectionOn = isSleepDetectionOn;
             saveSettingsToData();
         }
     }
@@ -327,14 +332,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startFaceDetection() {
+        // Debug log
+        console.log("startFaceDetection() called. isAccountabilityOn:", isAccountabilityOn, "isSleepDetectionOn:", isSleepDetectionOn, "isRunning:", isRunning);
         if (!faceApiInterval && (isAccountabilityOn || isSleepDetectionOn)) {
             faceApiInterval = setInterval(handleFaceDetection, 500);
+            window.faceApiInterval = faceApiInterval; // Debug global
+            console.log("Face detection started!", faceApiInterval);
         }
     }
 
     function stopFaceDetection() {
         clearInterval(faceApiInterval);
         faceApiInterval = null;
+        window.faceApiInterval = faceApiInterval; // Debug global
         hideFaceStatusPrompt();
         awayTimerStart = null;
         eyesClosedTimerStart = null;
@@ -355,8 +365,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleFaceDetection() {
+        // Debug logs
+        console.log("Detection loop running. Timer:", isRunning, "Accountability:", isAccountabilityOn, "SleepDetection:", isSleepDetectionOn);
         if (!modelsLoaded || !isRunning || DOMElements.video.paused || DOMElements.video.ended || !DOMElements.video.srcObject) return;
         const detections = await faceapi.detectAllFaces(DOMElements.video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 })).withFaceLandmarks(true);
+        console.log("Detections:", detections.length);
+
         const faceDetected = detections.length > 0;
 
         if (isAccountabilityOn) {
@@ -379,6 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (isSleepDetectionOn && faceDetected) {
             const ear = getEyeAspectRatio(detections[0].landmarks);
+            console.log("EAR:", ear);
             if (ear < EYE_AR_THRESH) {
                  if (!eyesClosedTimerStart) {
                     eyesClosedTimerStart = Date.now();
@@ -443,6 +458,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         isAccountabilityOn = settings.isAccountabilityOn || false;
         isSleepDetectionOn = settings.isSleepDetectionOn || false;
+        window.isAccountabilityOn = isAccountabilityOn;
+        window.isSleepDetectionOn = isSleepDetectionOn;
     }
 
     function saveSettingsToData() {
@@ -459,6 +476,11 @@ document.addEventListener('DOMContentLoaded', () => {
             currentUserData.settings.isAccountabilityOn = DOMElements.settings.accountabilityToggle.checked;
             currentUserData.settings.isSleepDetectionOn = DOMElements.settings.sleepDetectionToggle.checked;
             
+            isAccountabilityOn = DOMElements.settings.accountabilityToggle.checked;
+            isSleepDetectionOn = DOMElements.settings.sleepDetectionToggle.checked;
+            window.isAccountabilityOn = isAccountabilityOn;
+            window.isSleepDetectionOn = isSleepDetectionOn;
+
             saveUserData();
             loadSettingsFromData();
             if (!isRunning) resetTimer();
@@ -585,8 +607,16 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.clear-todos-btn').addEventListener('click', clearTodos);
         document.getElementById('todo-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTodo(); });
         document.getElementById("saveSettingsBtn").addEventListener('click', saveSettingsToData);
-        DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => { isAccountabilityOn = e.target.checked; });
-        DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => { isSleepDetectionOn = e.target.checked; });
+        DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => { 
+            isAccountabilityOn = e.target.checked; 
+            window.isAccountabilityOn = isAccountabilityOn;
+            saveSettingsToData();
+        });
+        DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => { 
+            isSleepDetectionOn = e.target.checked; 
+            window.isSleepDetectionOn = isSleepDetectionOn;
+            saveSettingsToData();
+        });
         document.getElementById('storeItems').addEventListener('click', (e) => { 
             if (e.target.tagName !== 'BUTTON') return;
             const item = e.target.closest('.store-item'); 
