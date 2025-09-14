@@ -168,6 +168,92 @@ button:disabled { background-color: var(--disabled-color) !important; color: var
 .auth-switch a { color: var(--primary-color); text-decoration: none; font-weight: bold; }
 .error-message { color: var(--danger-color); margin-top: 1rem; min-height: 1.2em; }
 
+/* --- Guest Mode --- */
+.auth-btn-guest {
+    background: var(--secondary-color);
+    color: #fff;
+    font-weight: bold;
+    margin-top: 18px;
+    padding: 10px 0;
+    border-radius: var(--border-radius);
+    width: 100%;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.auth-btn-guest:hover {
+    background: #5547f7;
+}
+
+.auth-warning {
+    color: var(--danger-color);
+    font-size: 1rem;
+    margin-top: 10px;
+    background: var(--card-dark);
+    border-radius: var(--border-radius);
+    padding: 8px 14px;
+    text-align: left;
+    border-left: 4px solid var(--danger-color);
+}
+
+/* --- Animated Intro Overlay --- */
+#introOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.8s cubic-bezier(.71,.07,.63,.98);
+}
+.intro-animation-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
+}
+#introLaptopAnim {
+    width: 400px;
+    height: 300px;
+    animation: intro-laptop-bounce 1.6s cubic-bezier(.71,.07,.63,.98) forwards;
+}
+@keyframes intro-laptop-bounce {
+    0% { transform: scale(0.92) translateY(50px); opacity: 0; }
+    50% { transform: scale(1.04) translateY(-13px); opacity: 1; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+/* Laptop screen open animation */
+#introLaptopScreen {
+    transform-origin: 200px 180px;
+    animation: intro-laptop-open 2s cubic-bezier(.71,.07,.63,.98) forwards;
+}
+@keyframes intro-laptop-open {
+    0% { transform: rotateX(0deg); }
+    60% { transform: rotateX(-60deg); }
+    90% { transform: rotateX(-89deg); }
+    100% { transform: rotateX(-89deg); }
+}
+/* App preview fade in */
+#introAppScreen {
+    transition: opacity 0.8s cubic-bezier(.71,.07,.63,.98);
+    opacity: 0;
+}
+.intro-app-preview {
+    width: 140px; height: 45px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #1e1e1e; border-radius: 10px; border: 1px solid #333; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.intro-app-logo { font-size: 1.2rem; font-weight: bold; color: #f7a047; }
+.intro-app-timer { font-size: 1.5rem; font-weight: bold; color: #fff; }
+.intro-app-btn { margin-top: 2px; font-size: 0.95rem; background: #5547f7; color: #fff; border-radius: 6px; padding: 2px 12px; }
+
+#introOverlay.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
 /* --- Face Detection Status Prompt --- */
 .face-status-prompt {
     position: fixed;
