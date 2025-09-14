@@ -19,49 +19,7 @@
     </script>
 </head>
 <body>
-<!-- =================== NEW: Animated Intro Overlay =================== -->
-<!-- Place this at the top of your <body>, before your main app container -->
-<div id="introOverlay">
-  <div class="intro-anim-container">
-    <svg id="introScene" viewBox="0 0 1200 650" width="100%" height="100%">
-      <!-- Background (logo colors) -->
-      <rect x="0" y="0" width="1200" height="650" fill="#232136"/>
-      <!-- Table -->
-      <rect id="table" x="420" y="420" width="360" height="40" rx="16" fill="#31315b" />
-      <!-- Chair (simple) -->
-      <rect id="chair" x="440" y="480" width="90" height="70" rx="16" fill="#3a337b" />
-      <!-- Person (group for animation) -->
-      <g id="person">
-        <!-- Legs -->
-        <rect id="leg-left" x="480" y="485" width="17" height="60" rx="9" fill="#e1c5a6"/>
-        <rect id="leg-right" x="510" y="485" width="17" height="60" rx="9" fill="#e1c5a6"/>
-        <!-- Body -->
-        <ellipse id="body" cx="500" cy="430" rx="30" ry="45" fill="#ffb44c"/>
-        <!-- Head -->
-        <circle id="head" cx="500" cy="380" r="27" fill="#fff3e2" stroke="#b67e3d" stroke-width="5"/>
-        <!-- Face features -->
-        <ellipse cx="493" cy="377" rx="3" ry="5" fill="#333"/>
-        <ellipse cx="507" cy="377" rx="3" ry="5" fill="#333"/>
-        <rect x="491" y="388" width="18" height="5" rx="2.5" fill="#e1c5a6"/>
-        <!-- Arms (initial - walking pose) -->
-        <rect id="arm-left" x="470" y="425" width="15" height="65" rx="7" fill="#e1c5a6"/>
-        <rect id="arm-right" x="515" y="425" width="15" height="65" rx="7" fill="#e1c5a6"/>
-      </g>
-      <!-- Laptop (on table) -->
-      <g id="laptop">
-        <!-- Lid (animated open) -->
-        <rect id="laptop-lid" x="545" y="392" width="110" height="15" rx="7" fill="#222"/>
-        <!-- Logo on lid -->
-        <image id="logo-on-lid" x="585" y="392" width="30" height="15" href="assets/logo.png" opacity="1"/>
-        <!-- Base -->
-        <rect id="laptop-base" x="545" y="407" width="110" height="25" rx="7" fill="#333"/>
-        <!-- Screen (hidden at start) -->
-        <image id="app-screen" x="565" y="412" width="70" height="20" href="assets/app-screenshot.png" opacity="0"/>
-      </g>
-    </svg>
-  </div>
-</div>
-<!-- =================== End Animated Intro Overlay =================== -->
+
 
 <!-- YouTube Video Background - always at back -->
 <div id="video-background-container"></div>
