@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style_Version7.css">
+    <link rel="stylesheet" href="style.css">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-V3CLSWYVTF"></script>
     <script>
@@ -19,19 +19,6 @@
     </script>
 </head>
 <body>
-<!-- =================== Minimalist Animated Intro Overlay =================== -->
-<div id="introOverlay">
-    <div class="welcome-container">
-        <div class="welcome-text">
-            <span class="typing">Welcome to</span>
-            <span class="site-name">Youfloww</span>
-        </div>
-        <img src="logo.png" class="welcome-logo" alt="Youfloww Logo" />
-        <div class="sparkle"></div>
-    </div>
-</div>
-<!-- =================== End Minimalist Animated Intro Overlay =================== -->
-
 <!-- YouTube Video Background - always at back -->
 <div id="video-background-container"></div>
 <video id="video" width="720" height="560" autoplay muted playsinline class="hidden"></video>
@@ -62,14 +49,13 @@
                 <button type="submit">Log In</button>
                 <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
             </form>
-            <!-- =================== NEW: Guest Mode Button and Warning =================== -->
+            <!-- Guest Mode Button and Warning -->
             <button id="continueWithoutSignupBtn" class="auth-btn-guest" type="button">
                 Continue without signing up
             </button>
             <p id="guestWarning" class="auth-warning hidden">
                 <strong>Warning:</strong> Your stats and tasks will NOT be saved after you close this tab.
             </p>
-            <!-- =================== End Guest Mode Button and Warning =================== -->
             <p id="auth-error" class="error-message"></p>
         </div>
     </div>
@@ -266,22 +252,15 @@
     <div class="review-modal-content">
         <div class="assistant-character animated-walk-in">
             <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-                <!-- Body -->
                 <ellipse id="body" cx="60" cy="80" rx="28" ry="25" fill="#6c63ff"/>
-                <!-- Head -->
                 <circle id="head" cx="60" cy="55" r="20" fill="#ffe0b2" stroke="#333" stroke-width="2"/>
-                <!-- Eyes (blink animation) -->
                 <ellipse id="eye-left" cx="54" cy="55" rx="3" ry="4" fill="#222"/>
                 <ellipse id="eye-right" cx="66" cy="55" rx="3" ry="4" fill="#222"/>
-                <!-- Smile -->
                 <path d="M54 65 Q60 73 66 65" stroke="#222" stroke-width="2" fill="none"/>
-                <!-- Animated pointing arm -->
                 <g id="pointing-arm">
                     <rect x="70" y="85" width="30" height="8" rx="4" fill="#ffe0b2" stroke="#333" stroke-width="2"/>
-                    <!-- Hand -->
                     <circle cx="100" cy="89" r="7" fill="#ffe0b2" stroke="#333" stroke-width="2"/>
                 </g>
-                <!-- Walking leg (simple bounce) -->
                 <rect id="leg" x="62" y="100" width="8" height="20" rx="4" fill="#6c63ff"/>
             </svg>
         </div>
@@ -304,7 +283,6 @@
         <button id="closeReviewModalBtn">Keep Flowing!</button>
     </div>
 </div>
-<!-- Floating Video Player -->
 <div id="pip-player-container" class="hidden">
     <div id="pip-player-header">
         <span class="pip-title">YouTube Player</span>
@@ -317,11 +295,9 @@
     </div>
     <div id="pip-resize-handle"></div>
 </div>
-<!-- Audio Elements -->
 <audio id="whiteNoise" loop><source src="whitenoise.mp3" type="audio/mpeg"></audio>
 <audio id="pauseAlertSound"><source src="https://actions.google.com/sounds/v1/ui/close_button_pressed.ogg" type="audio/ogg"></audio>
 <audio id="resumeAlertSound"><source src="https://actions.google.com/sounds/v1/ui/button_press.ogg" type="audio/ogg"></audio>
-<!-- Indian Meme Sounds -->
 <audio class="start-sound-indian" src="start-sound1.mp3"></audio>
 <audio class="start-sound-indian" src="start-sound2.mp3"></audio>
 <audio class="start-sound-indian" src="start-sound3.mp3"></audio>
@@ -334,20 +310,16 @@
 <audio class="bad-meme-indian" src="bad-meme2.mp3"></audio>
 <audio class="bad-meme-indian" src="bad-meme3.mp3"></audio>
 <audio class="bad-meme-indian" src="bad-meme4.mp3"></audio>
-<!-- Non-Indian Sounds -->
 <audio class="start-sound-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/start.mp3"></audio>
 <audio class="good-meme-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/good.mp3"></audio>
 <audio class="bad-meme-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/bad.mp3"></audio>
-<!-- FIREBASE SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js" type="module"></script>
-<!-- Libraries and Main Script -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-<script src="script_Version6.js" type="module"></script>
-<!-- Buy Me A Coffee Button -->
+<script src="script.js" type="module"></script>
 <a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
 </a>
