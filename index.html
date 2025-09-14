@@ -1,24 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouFloww: The Ultimate Pomodoro Timer for Deep Focus</title>
     <meta name="description" content="Boost your productivity with YouFloww, the advanced Pomodoro timer with unique features to help you achieve a state of flow and eliminate distractions.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <!-- Google tag (gtag.js) — original -->
+    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-V3CLSWYVTF"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
+
       gtag('config', 'G-V3CLSWYVTF');
     </script>
 </head>
 <body>
+
+<!-- Video element for face detection -->
+<video id="video" width="720" height="560" autoplay muted playsinline class="hidden"></video>
+<div id="face-detection-status" class="face-status-prompt hidden"></div>
 
 <!-- Firebase Auth Modal -->
 <div id="authModal" class="modal visible">
@@ -29,6 +34,11 @@
                 <h2>Create Your YouFloww Account</h2>
                 <input type="email" id="signup-email" placeholder="Email Address" required>
                 <input type="password" id="signup-password" placeholder="Password (min. 6 characters)" required>
+                <select id="signup-location" class="auth-select" required>
+                    <option value="" disabled selected>Where are you from?</option>
+                    <option value="indian">India</option>
+                    <option value="non-indian">Outside India</option>
+                </select>
                 <button type="submit">Sign Up</button>
                 <p class="auth-switch">Already have an account? <a href="#" id="show-login">Log In</a></p>
             </form>
@@ -46,6 +56,7 @@
     </div>
 </div>
 
+
 <!-- Main App Content (Initially Hidden) -->
 <div id="app-container" class="hidden">
     <header class="top-bar">
@@ -55,47 +66,47 @@
             <button id="changeNameBtn" class="btn-icon" aria-label="Change Name">✏️</button>
         </div>
         <div class="header-controls">
-            <a id="feedback-link" href="https://docs.google.com/forms/d/e/1FAIpQLSeexample" target="_blank">Feedback 📝</a>
-            <div id="streak-counter">🔥 <span id="streak-count">0</span></div>
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLScLU0kaf55JTMKH2XaavMzygMUJQZGeZAqgKxrAC8PXrYtuQA/viewform?usp=header" target="_blank" id="feedback-link" class="header-btn">
+                Feedback 📝
+            </a>
+            <div id="streak-counter">
+                <span id="streak-emoji">🔥</span>
+                <span id="streak-count">0</span>
+            </div>
             <button id="statsBtn" class="header-btn">View Stats 📈</button>
-            <button id="logoutBtn" class="header-btn">Logout</button>
+            <button id="logoutBtn" class="header-btn btn-danger">Logout</button>
         </div>
     </header>
 
     <main>
-        <section id="timerSection">
+        <section id="timer-section">
             <div id="status">Work Session</div>
             <div id="timer">25:00</div>
             <div class="timer-controls">
-                <button id="playPauseBtn" aria-label="Start/Pause">
-                    <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#ffffff" d="M8 5v14l11-7z"/></svg>
-                    <svg id="pauseIcon" class="hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#ffffff" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                <button id="resetBtn" class="btn-icon" aria-label="Reset Timer" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z"/></svg>
                 </button>
-                <button id="resetBtn" class="btn-icon">↺</button>
-                <button id="endSessionBtn" class="btn-icon">⬛</button>
+                <button id="playPauseBtn" aria-label="Start Timer">
+                    <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <svg id="pauseIcon" class="hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+                <button id="endSessionBtn" class="btn-icon" aria-label="End Session" disabled>
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+                </button>
             </div>
-
-            <!-- NEW SOUND & ACCOUNTABILITY CONTROLS (in settings area below timer) -->
-            <div class="settings" style="margin-top: 16px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-                <label for="soundSelection" style="margin-right:6px;">Start/End sound effects</label>
-                <select id="soundSelection" aria-label="Start End Sound Effects">
-                    <option value="india">For Indians (default)</option>
-                    <option value="nonindia">For non-Indians</option>
-                    <option value="off">Turn off sound effects</option>
-                </select>
-
-                <button id="globalSoundToggle" class="btn-icon" style="min-width:90px;">🔊 On</button>
-
-                <label style="margin-left:8px;">Accountability (camera)</label>
-                <button id="cameraToggle" class="btn-icon">Enable</button>
-
-                <label style="margin-left:8px;">Sleep detection</label>
-                <button id="sleepToggle" class="btn-icon">Enable</button>
-            </div>
-
         </section>
 
         <section id="features-section">
+            <div id="todo-container">
+                <h2>🎯 To-Do List</h2>
+                <div id="todo-input-container">
+                    <input type="text" id="todo-input" placeholder="Add a new task..." aria-label="Add a new task">
+                    <button id="add-todo-btn">Add</button>
+                </div>
+                <ul id="todo-list"></ul>
+                <button class="clear-todos-btn">Clear All Tasks</button>
+            </div>
+            
             <div class="controls-container">
                 <h2>✨ Ambience & Display</h2>
                 <div class="control-group">
@@ -109,30 +120,20 @@
                      <button id="sakuraBtn" class="ambience-toggle-btn">🌸 Sakura</button>
                 </div>
             </div>
-
-            <div id="todo-container" class="controls-container">
-                <h2>🎯 To-Do List</h2>
-                <div id="todo-input-container">
-                    <input id="todo-input" placeholder="Add a task...">
-                    <button id="add-todo-btn">Add</button>
-                </div>
-                <ul id="todo-list"></ul>
-                <div style="margin-top:12px;"><button class="clear-todos-btn">Clear All</button></div>
-            </div>
         </section>
     </main>
 </div>
 
-<!-- Stats modal (original markup) -->
 <div id="statsModal" class="modal">
     <div class="modal-content">
         <span class="close-btn">&times;</span>
         <h2>Your Progress 📈</h2>
 
-        <a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="margin-left: auto; margin-right: 20px;">
-            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
-        </a>
-
+       <!-- This is the new code with the right margin -->
+<a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="margin-left: auto; margin-right: 20px;">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
+</a>
+        
         <div class="tabs">
             <div class="tab active" data-tab="stats">📈 Stats</div>
             <div class="tab" data-tab="store">🛒 Themes</div>
@@ -152,7 +153,7 @@
             <div class="settings-group">
                 <h3>🎬 YouTube Background</h3>
                 <div class="input-group">
-                    <input type="text" id="youtube-input" placeholder="Paste YouTube URL.">
+                    <input type="text" id="youtube-input" placeholder="Paste YouTube URL...">
                     <button id="setYoutubeBtn">Set</button>
                 </div>
             </div>
@@ -171,37 +172,89 @@
                     <span>🏞️ Nature Walk</span><button>Apply</button>
                 </div>
             </div>
-
         </div>
-
+        
         <div id="settingsContainer" class="tab-content">
+            <h3>⏱️ Timer Durations (minutes)</h3>
             <div class="settings-grid">
-                <label>Work (minutes)</label>
-                <input id="work-duration" type="number" value="25">
-                <label>Short Break</label>
-                <input id="short-break-duration" type="number" value="5">
-                <label>Long Break</label>
-                <input id="long-break-duration" type="number" value="15">
-                <div></div><button id="saveSettingsBtn">Save</button>
+                <label for="work-duration">Work:</label>
+                <input type="number" id="work-duration" min="1">
+                <label for="short-break-duration">Short Break:</label>
+                <input type="number" id="short-break-duration" min="1">
+                <label for="long-break-duration">Long Break:</label>
+                <input type="number" id="long-break-duration" min="1">
             </div>
 
-            <div class="danger-zone">
-                <h3>Danger Zone</h3>
-                <p>Reset stats and settings.</p>
-                <button id="clearDataBtn" class="btn-danger">Reset All Data</button>
+            <!-- New Settings -->
+            <h3>🎵 Sound Effects</h3>
+            <div class="settings-group">
+                 <label for="sound-effects-select">Start/End Sounds:</label>
+                 <select id="sound-effects-select" class="settings-select">
+                    <option value="indian">For Indians</option>
+                    <option value="non-indian">For Non-Indians</option>
+                    <option value="off">Turn Off</option>
+                </select>
             </div>
+            
+            <h3>🤖 Accountability AI</h3>
+            <div class="settings-group">
+                <div class="toggle-switch-container">
+                    <label for="accountability-toggle">Accountability Partner (Camera)</label>
+                    <label class="switch">
+                        <input type="checkbox" id="accountability-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <p class="settings-description">Pauses the timer if you're away from the screen for 15+ seconds.</p>
+
+                <div class="toggle-switch-container">
+                    <label for="sleep-detection-toggle">Sleep Detection</label>
+                    <label class="switch">
+                        <input type="checkbox" id="sleep-detection-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <p class="settings-description">Pauses the timer if your eyes are closed for 10+ seconds.</p>
+            </div>
+
+            <button id="saveSettingsBtn">Save Settings</button>
         </div>
-
+        
         <div id="profileContainer" class="tab-content">
-            <h3>Profile</h3>
-            <p><strong id="profileNameDisplayModal">Floww User</strong></p>
-            <button id="logoutBtnModal">Logout</button>
+            <div class="info-zone">
+                <h3>🔥 Streak Info</h3>
+                <p>Complete at least one full work session of 25 minutes or more each day to build your streak. Keep the fire going!</p>
+            </div>
+             <div class="danger-zone">
+                <h3>⚠️ Danger Zone</h3>
+                <p>This will reset ALL your stats and settings permanently.</p>
+                <button id="clearDataBtn" class="btn-danger">Clear All Data</button>
+            </div>
         </div>
-
     </div>
 </div>
 
-<!-- Completion modal (original) -->
+<aside id="cornerWidget">
+    <div class="progress-label"><span>Day</span><span id="dayProgressPercent"></span></div>
+    <div class="progress-bar-container"><div id="dayProgressBar" class="progress-bar"></div></div>
+    <div class="progress-label"><span>Month</span><span id="monthProgressPercent"></span></div>
+    <div class="progress-bar-container"><div id="monthProgressBar" class="progress-bar"></div></div>
+    <div class="progress-label"><span>Year</span><span id="yearProgressPercent"></span></div>
+    <div class="progress-bar-container"><div id="yearProgressBar" class="progress-bar"></div></div>
+</aside>
+
+<div id="ambient-container"></div>
+<div id="video-background-container"></div>
+
+<div id="focusModeUI">
+    <div id="focusModeTimer"></div>
+    <div id="focusModeProgressBarContainer"><div id="focusModeProgressBar"></div></div>
+    <div id="focusModeControls">
+        <button id="focusModePlayPauseBtn" aria-label="Play/Pause"><span class="icon"></span></button>
+        <button id="focusModeExitBtn" aria-label="Exit Focus Mode"><span class="icon"></span></button>
+    </div>
+</div>
+
 <div id="completionModal" class="modal">
     <div class="completion-content">
         <div class="completion-icon">🎉</div>
@@ -211,20 +264,44 @@
     </div>
 </div>
 
-<!-- Review modal (NEW assistant-style) -->
-<div id="reviewModal" class="review-popup">
-    <div class="review-content">
-        <div class="review-assistant" aria-hidden="true"></div>
-        <h2>Session Review</h2>
-        <div id="reviewContent">
-            <!-- populated by script -->
+<!-- New Session Review Modal -->
+<div id="reviewModal" class="modal">
+    <div class="review-modal-content">
+        <div class="assistant-character">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <g class="assistant-body">
+                    <circle cx="50" cy="60" r="30" fill="#6c63ff"/>
+                    <rect x="40" y="85" width="20" height="10" rx="5" fill="#6c63ff"/>
+                </g>
+                <g class="assistant-eyes">
+                    <circle cx="40" cy="55" r="5" fill="white"/>
+                    <circle cx="60" cy="55" r="5" fill="white"/>
+                    <circle cx="41" cy="56" r="2" fill="black" class="pupil"/>
+                    <circle cx="61" cy="56" r="2" fill="black" class="pupil"/>
+                </g>
+                <path d="M 45 68 Q 50 75 55 68" stroke="white" stroke-width="2" fill="none" class="assistant-mouth"/>
+            </svg>
         </div>
-        <div style="margin-top:12px;">
-            <button id="saveReviewBtn">Save Summary</button>
-            <button id="closeReviewBtn">Close</button>
+        <h2 class="review-title">Session Review</h2>
+        <p class="review-subtitle">Here's how your focus session went:</p>
+        <div class="review-stats-grid">
+            <div class="review-stat-item">
+                <h3>Total Focus</h3>
+                <p id="reviewFocusTime">0m 0s</p>
+            </div>
+            <div class="review-stat-item">
+                <h3>Away Time</h3>
+                <p id="reviewAwayTime">0m 0s</p>
+            </div>
+            <div class="review-stat-item">
+                <h3>Total Duration</h3>
+                <p id="reviewTotalDuration">0m 0s</p>
+            </div>
         </div>
+        <button id="closeReviewModalBtn">Keep Flowing!</button>
     </div>
 </div>
+
 
 <!-- Floating Video Player -->
 <div id="pip-player-container" class="hidden">
@@ -240,50 +317,46 @@
     <div id="pip-resize-handle"></div>
 </div>
 
-<!-- Audio Elements (original Indian sounds) -->
+<!-- Audio Elements -->
 <audio id="whiteNoise" loop><source src="whitenoise.mp3" type="audio/mpeg"></audio>
 <audio id="pauseAlertSound"><source src="https://actions.google.com/sounds/v1/ui/close_button_pressed.ogg" type="audio/ogg"></audio>
 <audio id="resumeAlertSound"><source src="https://actions.google.com/sounds/v1/ui/button_press.ogg" type="audio/ogg"></audio>
-<audio class="start-sound" src="start-sound1.mp3"></audio>
-<audio class="start-sound" src="start-sound2.mp3"></audio>
-<audio class="start-sound" src="start-sound3.mp3"></audio>
-<audio class="start-sound" src="start-sound4.mp3"></audio>
-<audio class="good-meme" src="good-meme1.mp3"></audio>
-<audio class="good-meme" src="good-meme2.mp3"></audio>
-<audio class="good-meme" src="good-meme3.mp3"></audio>
-<audio class="good-meme" src="good-meme4.mp3"></audio>
-<audio class="bad-meme" src="bad-meme1.mp3"></audio>
-<audio class="bad-meme" src="bad-meme2.mp3"></audio>
-<audio class="bad-meme" src="bad-meme3.mp3"></audio>
-<audio class="bad-meme" src="bad-meme4.mp3"></audio>
 
-<!-- Non-India audio placeholders (NEW) — replace src with your GitHub raw links -->
-<audio class="nonindia-start" src="nonindia-start1.mp3"></audio>
-<audio class="nonindia-start" src="nonindia-start2.mp3"></audio>
-<audio class="nonindia-good" src="nonindia-good1.mp3"></audio>
-<audio class="nonindia-good" src="nonindia-good2.mp3"></audio>
-<audio class="nonindia-bad" src="nonindia-bad1.mp3"></audio>
-<audio class="nonindia-bad" src="nonindia-bad2.mp3"></audio>
+<!-- Indian Meme Sounds -->
+<audio class="start-sound-indian" src="start-sound1.mp3"></audio>
+<audio class="start-sound-indian" src="start-sound2.mp3"></audio>
+<audio class="start-sound-indian" src="start-sound3.mp3"></audio>
+<audio class="start-sound-indian" src="start-sound4.mp3"></audio>
+<audio class="good-meme-indian" src="good-meme1.mp3"></audio>
+<audio class="good-meme-indian" src="good-meme2.mp3"></audio>
+<audio class="good-meme-indian" src="good-meme3.mp3"></audio>
+<audio class="good-meme-indian" src="good-meme4.mp3"></audio>
+<audio class="bad-meme-indian" src="bad-meme1.mp3"></audio>
+<audio class="bad-meme-indian" src="bad-meme2.mp3"></audio>
+<audio class="bad-meme-indian" src="bad-meme3.mp3"></audio>
+<audio class="bad-meme-indian" src="bad-meme4.mp3"></audio>
 
-<!-- FIREBASE SDKs (original script tags) -->
+<!-- Non-Indian Sounds -->
+<audio class="start-sound-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/start.mp3"></audio>
+<audio class="good-meme-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/good.mp3"></audio>
+<audio class="bad-meme-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/bad.mp3"></audio>
+
+
+<!-- FIREBASE SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js" type="module"></script>
 
-<!-- Face landmarks (for camera & eye detection) -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
-
 <!-- Libraries and Main Script -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+<!-- Face-api.js for camera features -->
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="script.js" type="module"></script>
 
-<!-- Buy Me A Coffee Button - Fixed to Bottom Left -->
+<!-- Buy Me A Coffee Button -->
 <a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
 </a>
-
 </body>
 </html>
