@@ -260,27 +260,36 @@
     </div>
 </div>
 
+<!-- ...other code above... -->
+
 <!-- New Session Review Modal -->
 <div id="reviewModal" class="modal">
     <div class="review-modal-content">
-        <div class="assistant-character">
-            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <g class="assistant-body">
-                    <circle cx="50" cy="60" r="30" fill="#6c63ff"/>
-                    <rect x="40" y="85" width="20" height="10" rx="5" fill="#6c63ff"/>
+        <div class="assistant-character animated-walk-in">
+            <!-- Animated SVG Character -->
+            <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                <!-- Body -->
+                <ellipse id="body" cx="60" cy="80" rx="28" ry="25" fill="#6c63ff"/>
+                <!-- Head -->
+                <circle id="head" cx="60" cy="55" r="20" fill="#ffe0b2" stroke="#333" stroke-width="2"/>
+                <!-- Eyes (blink animation) -->
+                <ellipse id="eye-left" cx="54" cy="55" rx="3" ry="4" fill="#222"/>
+                <ellipse id="eye-right" cx="66" cy="55" rx="3" ry="4" fill="#222"/>
+                <!-- Smile -->
+                <path d="M54 65 Q60 73 66 65" stroke="#222" stroke-width="2" fill="none"/>
+                <!-- Animated pointing arm -->
+                <g id="pointing-arm">
+                    <rect x="70" y="85" width="30" height="8" rx="4" fill="#ffe0b2" stroke="#333" stroke-width="2"/>
+                    <!-- Hand -->
+                    <circle cx="100" cy="89" r="7" fill="#ffe0b2" stroke="#333" stroke-width="2"/>
                 </g>
-                <g class="assistant-eyes">
-                    <circle cx="40" cy="55" r="5" fill="white"/>
-                    <circle cx="60" cy="55" r="5" fill="white"/>
-                    <circle cx="41" cy="56" r="2" fill="black" class="pupil"/>
-                    <circle cx="61" cy="56" r="2" fill="black" class="pupil"/>
-                </g>
-                <path d="M 45 68 Q 50 75 55 68" stroke="white" stroke-width="2" fill="none" class="assistant-mouth"/>
+                <!-- Walking leg (simple bounce) -->
+                <rect id="leg" x="62" y="100" width="8" height="20" rx="4" fill="#6c63ff"/>
             </svg>
         </div>
         <h2 class="review-title">Session Review</h2>
         <p class="review-subtitle">Here's how your focus session went:</p>
-        <div class="review-stats-grid">
+        <div class="review-stats-grid" id="statsGrid">
             <div class="review-stat-item">
                 <h3>Total Focus</h3>
                 <p id="reviewFocusTime">0m 0s</p>
@@ -297,6 +306,7 @@
         <button id="closeReviewModalBtn">Keep Flowing!</button>
     </div>
 </div>
+<!-- ...other code below... -->
 
 <!-- Floating Video Player -->
 <div id="pip-player-container" class="hidden">
