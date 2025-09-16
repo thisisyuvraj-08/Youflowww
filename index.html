@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-V3CLSWYVTF"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -16,15 +17,23 @@
       gtag('js', new Date());
       gtag('config', 'G-V3CLSWYVTF');
     </script>
+    <!-- Mediapipe FaceMesh (for new sleep/presence detection) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 </head>
 <body>
+<!-- YouTube Video Background - always at back -->
 <div id="video-background-container"></div>
-<video id="camera-feed" class="hidden"></video>
+<video id="video" width="720" height="560" autoplay muted playsinline class="hidden"></video>
+<!-- New: Mediapipe FaceMesh video (hidden) -->
+<video id="faceMeshVideo" width="720" height="560" autoplay muted playsinline class="hidden"></video>
 <div id="face-detection-status" class="face-status-prompt hidden"></div>
 
+<!-- Firebase Auth Modal -->
 <div id="authModal" class="modal visible">
     <div class="modal-content auth-container">
         <div id="auth-form-container">
+            <!-- Sign Up Form -->
             <form id="signup-form" class="auth-form">
                 <h2>Create Your YouFloww Account</h2>
                 <input type="email" id="signup-email" placeholder="Email Address" required>
@@ -37,6 +46,7 @@
                 <button type="submit">Sign Up</button>
                 <p class="auth-switch">Already have an account? <a href="#" id="show-login">Log In</a></p>
             </form>
+            <!-- Login Form -->
             <form id="login-form" class="auth-form hidden">
                 <h2>Welcome Back!</h2>
                 <input type="email" id="login-email" placeholder="Email Address" required>
@@ -44,6 +54,7 @@
                 <button type="submit">Log In</button>
                 <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
             </form>
+            <!-- Guest Mode Button and Warning -->
             <button id="continueWithoutSignupBtn" class="auth-btn-guest" type="button">
                 Continue without signing up
             </button>
@@ -55,6 +66,7 @@
     </div>
 </div>
 
+<!-- Main App Content (Initially Hidden) -->
 <div id="app-container" class="hidden">
     <header class="top-bar">
         <div class="profile-greeting">
@@ -171,6 +183,7 @@
                 <label for="long-break-duration">Long Break:</label>
                 <input type="number" id="long-break-duration" min="1">
             </div>
+            <!-- New Settings -->
             <h3>🎵 Sound Effects</h3>
             <div class="settings-group">
                  <label for="sound-effects-select">Start/End Sounds:</label>
@@ -198,6 +211,15 @@
                     </label>
                 </div>
                 <p class="settings-description">Pauses the timer if your eyes are closed for 10+ seconds.</p>
+                <!-- New: Info for Mediapipe -->
+                <div class="toggle-switch-container">
+                    <label for="mediapipe-toggle">Use New Detection (FaceMesh)</label>
+                    <label class="switch">
+                        <input type="checkbox" id="mediapipe-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <p class="settings-description">Turn ON to use the new FaceMesh-based detection (recommended).</p>
             </div>
             <button id="saveSettingsBtn">Save Settings</button>
         </div>
@@ -214,14 +236,14 @@
         </div>
     </div>
 </div>
-<aside id="cornerWidget">
+<div id="cornerWidget">
     <div class="progress-label"><span>Day</span><span id="dayProgressPercent"></span></div>
     <div class="progress-bar-container"><div id="dayProgressBar" class="progress-bar"></div></div>
     <div class="progress-label"><span>Month</span><span id="monthProgressPercent"></span></div>
     <div class="progress-bar-container"><div id="monthProgressBar" class="progress-bar"></div></div>
     <div class="progress-label"><span>Year</span><span id="yearProgressPercent"></span></div>
     <div class="progress-bar-container"><div id="yearProgressBar" class="progress-bar"></div></div>
-</aside>
+</div>
 <div id="ambient-container"></div>
 <div id="focusModeUI">
     <div id="focusModeTimer"></div>
@@ -239,10 +261,11 @@
         <button id="closeCompletionModalBtn">Awesome!</button>
     </div>
 </div>
+<!-- New Session Review Modal with animated assistant -->
 <div id="reviewModal" class="modal">
     <div class="review-modal-content">
         <div class="assistant-character animated-walk-in">
-            <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
                 <ellipse id="body" cx="60" cy="80" rx="28" ry="25" fill="#6c63ff"/>
                 <circle id="head" cx="60" cy="55" r="20" fill="#ffe0b2" stroke="#333" stroke-width="2"/>
                 <ellipse id="eye-left" cx="54" cy="55" rx="3" ry="4" fill="#222"/>
@@ -304,14 +327,12 @@
 <audio class="start-sound-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/start.mp3"></audio>
 <audio class="good-meme-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/good.mp3"></audio>
 <audio class="bad-meme-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/bad.mp3"></audio>
-
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js" type="module"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script src="script.js" type="module"></script>
 <a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
