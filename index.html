@@ -25,8 +25,6 @@
 <!-- YouTube Video Background - always at back -->
 <div id="video-background-container"></div>
 <video id="video" width="720" height="560" autoplay muted playsinline class="hidden"></video>
-<!-- New: Mediapipe FaceMesh video (hidden) -->
-<video id="faceMeshVideo" width="720" height="560" autoplay muted playsinline class="hidden"></video>
 <div id="face-detection-status" class="face-status-prompt hidden"></div>
 
 <!-- Firebase Auth Modal -->
@@ -211,15 +209,6 @@
                     </label>
                 </div>
                 <p class="settings-description">Pauses the timer if your eyes are closed for 10+ seconds.</p>
-                <!-- New: Info for Mediapipe -->
-                <div class="toggle-switch-container">
-                    <label for="mediapipe-toggle">Use New Detection (FaceMesh)</label>
-                    <label class="switch">
-                        <input type="checkbox" id="mediapipe-toggle">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <p class="settings-description">Turn ON to use the new FaceMesh-based detection (recommended).</p>
             </div>
             <button id="saveSettingsBtn">Save Settings</button>
         </div>
@@ -236,6 +225,7 @@
         </div>
     </div>
 </div>
+<!-- Progress Widget (unchanged) -->
 <div id="cornerWidget">
     <div class="progress-label"><span>Day</span><span id="dayProgressPercent"></span></div>
     <div class="progress-bar-container"><div id="dayProgressBar" class="progress-bar"></div></div>
