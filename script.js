@@ -111,6 +111,11 @@ let awayTimerStart = null;
 let eyesClosedTimerStart = null;
 let modelsLoaded = false; // Flag to check if face-api models are loaded
 
+let awayTime = 0, sleepTime = 0, sessionTime = 0;
+let awayTimer, sleepTimer, sessionTimer;
+let isSleeping = false, isAway = false;
+let timerPaused = false;
+
 // ===================================================================================
 // DOM ELEMENTS CACHE
 // ===================================================================================
@@ -178,6 +183,7 @@ onAuthStateChanged(auth, user => {
         isGuestMode = false;
         DOMElements.appContainer.classList.remove('hidden');
         DOMElements.authModal.classList.remove('visible');
+        DOMElements.authError.textContent = '';
         userDataRef = doc(db, "users", user.uid);
         loadUserData();
     } else if (!isGuestMode) {
@@ -474,6 +480,133 @@ function hideFaceStatusPrompt() {
     DOMElements.faceStatusPrompt.classList.remove('visible');
 }
 
+// --- Away Detection ---
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        awayTimer = setTimeout(() => {
+            pauseTimer();
+            isAway = true;
+            showFaceStatus('You are away! Timer paused.');
+        }, 15000); // 15 seconds
+    } else {
+        clearTimeout(awayTimer);
+        if (isAway) {
+            resumeTimer();
+            isAway = false;
+            showFaceStatus('Welcome back! Timer resumed.');
+        }
+    }
+});
+
+// --- Sleep Detection (Webcam + face-api.js) ---
+async function startSleepDetection() {
+    await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+    await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.width = 320;
+    video.height = 240;
+    document.body.appendChild(video);
+    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+        video.srcObject = stream;
+    });
+
+    let sleepStart = null;
+    setInterval(async () => {
+        const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+        if (detections && detections.landmarks) {
+            const leftEye = detections.landmarks.getLeftEye();
+            const rightEye = detections.landmarks.getRightEye();
+            const eyeOpen = isEyeOpen(leftEye) && isEyeOpen(rightEye);
+            if (!eyeOpen) {
+                if (!sleepStart) sleepStart = Date.now();
+                if (Date.now() - sleepStart > 10000 && !isSleeping) { // 10 seconds
+                    pauseTimer();
+                    isSleeping = true;
+                    showSleepAlert();
+                }
+            } else {
+                sleepStart = null;
+                if (isSleeping) {
+                    resumeTimer();
+                    isSleeping = false;
+                    hideSleepAlert();
+                }
+            }
+        }
+    }, 1000);
+}
+
+function isEyeOpen(eye) {
+    // Simple heuristic: vertical distance between eyelid points
+    const vertical = Math.abs(eye[1].y - eye[5].y);
+    return vertical > 4; // tweak threshold as needed
+}
+
+function showFaceStatus(msg) {
+    const prompt = document.querySelector('.face-status-prompt');
+    prompt.textContent = msg;
+    prompt.classList.add('visible');
+    setTimeout(() => prompt.classList.remove('visible'), 3000);
+}
+
+function showSleepAlert() {
+    // Show modal with character and sound
+    const modal = document.createElement('div');
+    modal.className = 'modal visible';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="assistant-character animated-walk-in">
+          <!-- SVG character here -->
+        </div>
+        <h2>Wake up buddy!</h2>
+        <p>Your eyes were closed for too long. Timer paused.</p>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    const beep = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+    beep.play();
+}
+
+function hideSleepAlert() {
+    document.querySelectorAll('.modal.visible').forEach(m => m.remove());
+}
+
+// --- Timer Pause/Resume Logic ---
+function pauseTimer() {
+    timerPaused = true;
+    // ...pause timer logic...
+}
+function resumeTimer() {
+    timerPaused = false;
+    // ...resume timer logic...
+}
+
+// --- Session Summary ---
+function showSessionSummary() {
+    const total = sessionTime + awayTime + sleepTime;
+    const modal = document.createElement('div');
+    modal.className = 'review-modal-content modal visible';
+    modal.innerHTML = `
+      <div class="assistant-character animated-walk-in"></div>
+      <div class="review-title">Session Complete!</div>
+      <div class="review-stats-grid">
+        <div class="review-stat-item"><h3>Total Time</h3><p>${formatTime(total)}</p></div>
+        <div class="review-stat-item"><h3>Away Time</h3><p>${formatTime(awayTime)}</p></div>
+        <div class="review-stat-item"><h3>Caught Sleeping</h3><p>${formatTime(sleepTime)}</p></div>
+      </div>
+      <button id="closeReviewModalBtn">Close</button>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('closeReviewModalBtn').onclick = () => modal.remove();
+}
+
+function formatTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    return `${m}m ${s % 60}s`;
+}
+
 // ===================================================================================
 // INITIALIZATION & UI LOGIC
 // ===================================================================================
@@ -707,6 +840,9 @@ function attachMainAppEventListeners() {
             currentUserData.settings.soundProfile = location;
             await setDoc(userDataRef, currentUserData);
             initializeAppState();
+            DOMElements.appContainer.classList.remove('hidden');
+            DOMElements.authModal.classList.remove('visible');
+            DOMElements.authError.textContent = '';
         } catch (error) { 
             DOMElements.authError.textContent = error.message; 
         } 
@@ -718,6 +854,9 @@ function attachMainAppEventListeners() {
         const password = document.getElementById('login-password').value; 
         try { 
             await signInWithEmailAndPassword(auth, email, password); 
+            DOMElements.appContainer.classList.remove('hidden');
+            DOMElements.authModal.classList.remove('visible');
+            DOMElements.authError.textContent = '';
         } catch (error) { 
             DOMElements.authError.textContent = error.message; 
         } 
