@@ -4,6 +4,30 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, on
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js";
 
+// ============ Minimalist Animated Intro Logic ============
+function playMinimalistIntro() {
+    const overlay = document.getElementById('introOverlay');
+    if (!overlay) return; // Guard against missing element
+    const sparkle = overlay.querySelector('.sparkle');
+    if (!sparkle) return;
+    for (let i = 0; i < 12; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'sparkle-dot';
+        dot.style.left = `${60 + Math.random()*90}px`;
+        dot.style.top = `${80 + Math.random()*60}px`;
+        dot.style.animationDelay = `${Math.random()*2.2}s`;
+        dot.style.background = `linear-gradient(135deg,#f7a047 0%,#6c63ff 100%)`;
+        sparkle.appendChild(dot);
+    }
+    setTimeout(() => {
+        overlay.classList.add('fade-out');
+        setTimeout(() => { overlay.style.display = 'none'; }, 1200);
+    }, 3400);
+}
+// Note: Intro is currently commented out as the HTML for it is not present.
+// window.addEventListener('DOMContentLoaded', playMinimalistIntro);
+
+// ============ NEW: Guest Mode State ============
 let isGuestMode = false;
 
 function getDefaultUserData() {
@@ -27,8 +51,11 @@ function getDefaultUserData() {
     };
 }
 
+// ===================================================================================
+// FIREBASE INITIALIZATION
+// ===================================================================================
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY", // Replace with your actual Firebase config
+    apiKey: "YOUR_API_KEY", // IMPORTANT: Replace with your Firebase config
     authDomain: "youfloww2.firebaseapp.com",
     projectId: "youfloww2",
     storageBucket: "youfloww2.appspot.com",
@@ -44,6 +71,9 @@ const analytics = getAnalytics(app);
 let currentUserData = {};
 let userDataRef = null;
 
+// ===================================================================================
+// GLOBAL STATE & VARIABLES
+// ===================================================================================
 let timerInterval, isRunning = false, isWorkSession = true, sessionCount = 0;
 let endTime = 0, timeLeft;
 let workDuration, shortBreakDuration, longBreakDuration;
@@ -63,6 +93,9 @@ let awayTimerStart = null;
 let eyesClosedTimerStart = null;
 let modelsLoaded = false;
 
+// ===================================================================================
+// DOM ELEMENTS CACHE
+// ===================================================================================
 const DOMElements = {
     video: document.getElementById("video"),
     timerDisplay: document.getElementById("timer"),
@@ -91,8 +124,12 @@ const DOMElements = {
         totalFocusTime: document.getElementById("totalFocusTime"),
         totalSessionsCount: document.getElementById("totalSessionsCount"),
     },
-    profile: { nameDisplay: document.getElementById("profileNameDisplay"), },
-    streak: { count: document.getElementById("streak-count"), },
+    profile: {
+        nameDisplay: document.getElementById("profileNameDisplay"),
+    },
+    streak: {
+        count: document.getElementById("streak-count"),
+    },
     settings: {
         soundEffects: document.getElementById('sound-effects-select'),
         accountabilityToggle: document.getElementById('accountability-toggle'),
@@ -116,7 +153,7 @@ const DOMElements = {
 };
 
 // ===================================================================================
-// AUTH & DATA
+// FIREBASE AUTH & DATA
 // ===================================================================================
 onAuthStateChanged(auth, user => {
     if (user) {
@@ -147,7 +184,7 @@ function loadUserData() {
 }
 
 // ===================================================================================
-// TIMER LOGIC
+// CORE TIMER LOGIC
 // ===================================================================================
 function updateTimerDisplay() { const minutes = Math.floor(timeLeft / 60); const seconds = timeLeft % 60; const timeString = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`; DOMElements.timerDisplay.textContent = timeString; DOMElements.focusMode.timer.textContent = timeString; const currentDuration = isWorkSession ? workDuration : (sessionCount % 4 === 0 ? longBreakDuration : shortBreakDuration); const progress = timeLeft > 0 ? ((currentDuration - timeLeft) / currentDuration) * 100 : 0; DOMElements.focusMode.progressBar.style.width = `${progress}%`; document.title = isRunning ? `${timeString} - ${isWorkSession ? 'Work' : 'Break'} | YouFloww` : 'YouFloww'; }
 function updateUIState() { DOMElements.statusDisplay.textContent = isWorkSession ? "Work Session" : "Break Time"; DOMElements.playIcon.classList.toggle('hidden', isRunning); DOMElements.pauseIcon.classList.toggle('hidden', !isRunning); DOMElements.playPauseBtn.setAttribute('aria-label', isRunning ? 'Pause Timer' : 'Start Timer'); DOMElements.resetBtn.disabled = isRunning; DOMElements.endSessionBtn.disabled = !isRunning; DOMElements.focusMode.playPauseBtn.classList.toggle('paused', !isRunning); }
@@ -161,7 +198,10 @@ function startTimer(isResume = false) {
         else playRandomSound('start');
     }
     if (!sessionStartTime) sessionStartTime = Date.now();
-    if (lastPauseTimestamp) { totalAwayTime += Date.now() - lastPauseTimestamp; lastPauseTimestamp = null; }
+    if (lastPauseTimestamp) {
+        totalAwayTime += Date.now() - lastPauseTimestamp;
+        lastPauseTimestamp = null;
+    }
     endTime = Date.now() + timeLeft * 1000;
     updateUIState();
     if (isAccountabilityOn || isSleepDetectionOn) { startFaceDetection(); }
@@ -176,13 +216,18 @@ function pauseTimer(isAuto = false) {
     if (!isRunning) return;
     clearInterval(timerInterval);
     isRunning = false;
-    if (!isAuto) { pauseWasManual = true; DOMElements.sounds.pauseAlert.play(); stopFaceDetection(); } else { pauseWasManual = false; }
+    if (!isAuto) {
+        pauseWasManual = true;
+        DOMElements.sounds.pauseAlert.play();
+        stopFaceDetection();
+    } else {
+        pauseWasManual = false;
+    }
     lastPauseTimestamp = Date.now();
     updateUIState();
 }
 
 function resetTimer() { clearInterval(timerInterval); stopFaceDetection(); isRunning = false; isWorkSession = true; sessionCount = 0; timeLeft = workDuration; sessionStartTime = null; totalAwayTime = 0; updateTimerDisplay(); updateUIState(); }
-
 function endSession() { const timeFocusedSec = workDuration - timeLeft; const minutesFocused = Math.floor(timeFocusedSec / 60); handleEndOfWorkSession(minutesFocused, false); showSessionReview(); resetTimer(); }
 
 function handleSessionCompletion() {
@@ -200,7 +245,8 @@ function handleSessionCompletion() {
 }
 
 function handleEndOfWorkSession(minutesFocused, sessionCompleted) {
-    stopFaceDetection(); stopVideo();
+    stopFaceDetection();
+    stopVideo();
     if (minutesFocused > 0) {
         currentUserData.totalFocusMinutes = (currentUserData.totalFocusMinutes || 0) + minutesFocused;
         currentUserData.totalSessions = (currentUserData.totalSessions || 0) + 1;
@@ -303,12 +349,9 @@ function setYoutubeBackground(videoId) { document.getElementById("video-backgrou
 function applyBackgroundTheme(path) { document.body.style.backgroundImage = `url('${path}')`; document.getElementById("video-background-container").innerHTML = ''; }
 function loadTheme() { if (currentUserData.theme?.backgroundPath) applyBackgroundTheme(currentUserData.theme.backgroundPath); if (currentUserData.theme?.youtubeVideoId) setYoutubeBackground(currentUserData.theme.youtubeVideoId); }
 
-function renderCharts() { /* Same as before */ }
-function switchTab(tabName) { /* Same as before */ }
+function renderCharts() { const weeklyData = currentUserData.weeklyFocus || {}; const today = new Date(); const labels = Array.from({ length: 7 }, (_, i) => { const d = new Date(today); d.setDate(today.getDate() - (6 - i)); return d.toLocaleDateString('en-US', { weekday: 'short' }); }); const data = labels.map((_, i) => { const d = new Date(today); d.setDate(today.getDate() - (6 - i)); const key = d.toISOString().slice(0, 10); return (weeklyData[key] || 0) / 60; }); const barCtx = document.getElementById('barChart').getContext('2d'); if (window.myBarChart) window.myBarChart.destroy(); window.myBarChart = new Chart(barCtx, { type: 'bar', data: { labels, datasets: [{ label: 'Daily Focus (hours)', data, backgroundColor: '#f7a047', borderRadius: 5 }] }, options: { maintainAspectRatio: false, responsive: true } }); const totalFocus = currentUserData.totalFocusMinutes || 0; const totalSessions = currentUserData.totalSessions || 0; const totalBreak = totalSessions * ((currentUserData.settings?.shortBreakDuration || 300) / 60); const pieCtx = document.getElementById('pieChart').getContext('2d'); if(window.myPieChart) window.myPieChart.destroy(); window.myPieChart = new Chart(pieCtx, {type: 'pie', data: { labels: ['Work', 'Break'], datasets: [{ data: [totalFocus, totalBreak], backgroundColor: ['#f7a047', '#6c63ff'] }] }, options: { maintainAspectRatio: false, responsive: true }}); }
+function switchTab(tabName) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active'); document.getElementById(`${tabName}Container`).classList.add('active'); }
 
-// ===================================================================================
-// EVENT LISTENERS
-// ===================================================================================
 function attachMainAppEventListeners() {
     DOMElements.playPauseBtn.addEventListener('click', () => isRunning ? pauseTimer() : startTimer(true));
     DOMElements.resetBtn.addEventListener('click', resetTimer);
@@ -330,20 +373,91 @@ function attachMainAppEventListeners() {
     document.querySelector('.clear-todos-btn').addEventListener('click', clearTodos);
     document.getElementById('todo-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTodo(); });
     document.getElementById("saveSettingsBtn").addEventListener('click', saveSettingsToData);
-    DOMElements.settings.accountabilityToggle.addEventListener('change', async (e) => { isAccountabilityOn = e.target.checked; if (isAccountabilityOn) await loadFaceApiModels(); saveSettingsToData(); });
-    DOMElements.settings.sleepDetectionToggle.addEventListener('change', async (e) => { isSleepDetectionOn = e.target.checked; if (isSleepDetectionOn) await loadFaceApiModels(); saveSettingsToData(); });
-    document.getElementById('storeItems').addEventListener('click', (e) => { if (e.target.tagName !== 'BUTTON') return; const item = e.target.closest('.store-item'); currentUserData.theme = {}; if (item.dataset.type === 'image') { currentUserData.theme.backgroundPath = item.dataset.path; applyBackgroundTheme(item.dataset.path); } else if (item.dataset.type === 'youtube') { currentUserData.theme.youtubeVideoId = item.dataset.id; setYoutubeBackground(item.dataset.id); } saveUserData(); closeStats(); });
-    document.getElementById("setYoutubeBtn").addEventListener('click', () => { const url = document.getElementById("youtube-input").value; const videoId = getYoutubeVideoId(url); if (videoId) { currentUserData.theme = { youtubeVideoId: videoId, backgroundPath: null }; setYoutubeBackground(videoId); saveUserData(); } else if (url) { alert("Please enter a valid YouTube URL."); } });
-    document.getElementById("clearDataBtn").addEventListener('click', async () => { if (confirm("DANGER: This will reset ALL your stats and settings permanently.")) { const soundProfile = currentUserData.settings.soundProfile; currentUserData = getDefaultUserData(); currentUserData.settings.soundProfile = soundProfile; saveUserData(); initializeAppState(); updateTimerDisplay(); }});
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById("continueWithoutSignupBtn").addEventListener('click', () => { isGuestMode = true; DOMElements.appContainer.classList.remove('hidden'); DOMElements.authModal.classList.remove('visible'); document.getElementById("guestWarning").classList.remove('hidden'); currentUserData = JSON.parse(localStorage.getItem('youfloww_guest')) || getDefaultUserData(); initializeAppState(); });
-    document.getElementById('signup-form').addEventListener('submit', async (e) => { e.preventDefault(); DOMElements.authError.textContent = ''; const email = document.getElementById('signup-email').value; const password = document.getElementById('signup-password').value; const location = document.getElementById('signup-location').value; if (!location) { DOMElements.authError.textContent = 'Please select where you are from.'; return; } try { const userCredential = await createUserWithEmailAndPassword(auth, email, password); userDataRef = doc(db, "users", userCredential.user.uid); currentUserData = getDefaultUserData(); currentUserData.settings.soundProfile = location; await setDoc(userDataRef, currentUserData); } catch (error) { DOMElements.authError.textContent = error.message; } });
-    document.getElementById('login-form').addEventListener('submit', async (e) => { e.preventDefault(); DOMElements.authError.textContent = ''; const email = document.getElementById('login-email').value; const password = document.getElementById('login-password').value; try { await signInWithEmailAndPassword(auth, email, password); } catch (error) { DOMElements.authError.textContent = error.message; } });
-    document.getElementById('logoutBtn').addEventListener('click', () => { if (isGuestMode) { isGuestMode = false; localStorage.removeItem('youfloww_guest'); window.location.reload(); } else { signOut(auth); } });
+    DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => { 
+        isAccountabilityOn = e.target.checked; 
+        saveSettingsToData();
+    });
+    DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => { 
+        isSleepDetectionOn = e.target.checked; 
+        saveSettingsToData();
+    });
+    document.getElementById('storeItems').addEventListener('click', (e) => { 
+        if (e.target.tagName !== 'BUTTON') return;
+        const item = e.target.closest('.store-item'); 
+        currentUserData.theme = {}; 
+        if (item.dataset.type === 'image') { currentUserData.theme.backgroundPath = item.dataset.path; applyBackgroundTheme(item.dataset.path); } 
+        else if (item.dataset.type === 'youtube') { currentUserData.theme.youtubeVideoId = item.dataset.id; setYoutubeBackground(item.dataset.id); }
+        saveUserData();
+        closeStats();
+    });
+    document.getElementById("setYoutubeBtn").addEventListener('click', () => {
+        const url = document.getElementById("youtube-input").value; 
+        const videoId = getYoutubeVideoId(url);
+        if (videoId) { currentUserData.theme = { youtubeVideoId: videoId, backgroundPath: null }; setYoutubeBackground(videoId); saveUserData(); } 
+        else if (url) { alert("Please enter a valid YouTube URL."); }
+    });
+    document.getElementById("clearDataBtn").addEventListener('click', async () => { if (confirm("DANGER: This will reset ALL your stats and settings permanently.")) { 
+        const soundProfile = currentUserData.settings.soundProfile;
+        currentUserData = getDefaultUserData();
+        currentUserData.settings.soundProfile = soundProfile;
+        saveUserData();
+        initializeAppState();
+        updateTimerDisplay();
+    }});
+    document.getElementById('signup-form').addEventListener('submit', async (e) => { 
+        e.preventDefault(); 
+        DOMElements.authError.textContent = ''; 
+        const email = document.getElementById('signup-email').value; 
+        const password = document.getElementById('signup-password').value; 
+        const location = document.getElementById('signup-location').value;
+        if (!location) {
+            DOMElements.authError.textContent = 'Please select where you are from.';
+            return;
+        }
+        try { 
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            userDataRef = doc(db, "users", userCredential.user.uid);
+            currentUserData = getDefaultUserData();
+            currentUserData.settings.soundProfile = location;
+            await setDoc(userDataRef, currentUserData);
+            initializeAppState();
+        } catch (error) { 
+            DOMElements.authError.textContent = error.message; 
+        } 
+    });
+    document.getElementById('login-form').addEventListener('submit', async (e) => { 
+        e.preventDefault(); 
+        DOMElements.authError.textContent = ''; 
+        const email = document.getElementById('login-email').value; 
+        const password = document.getElementById('login-password').value; 
+        try { 
+            await signInWithEmailAndPassword(auth, email, password); 
+        } catch (error) { 
+            DOMElements.authError.textContent = error.message; 
+        } 
+    });
+    document.getElementById('logoutBtn').addEventListener('click', () => { 
+        if (isGuestMode) {
+            isGuestMode = false;
+            localStorage.removeItem('youfloww_guest');
+            window.location.reload();
+        } else {
+            signOut(auth);
+        }
+    });
     document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
     document.getElementById('show-signup').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
     setInterval(updateCornerWidget, 30000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById("continueWithoutSignupBtn").addEventListener('click', () => { 
+        isGuestMode = true;
+        DOMElements.appContainer.classList.remove('hidden');
+        DOMElements.authModal.classList.remove('visible');
+        document.getElementById("guestWarning").classList.remove('hidden');
+        currentUserData = JSON.parse(localStorage.getItem('youfloww_guest')) || getDefaultUserData();
+        initializeAppState();
+    });
     attachMainAppEventListeners();
 });
