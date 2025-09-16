@@ -4,7 +4,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, on
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js";
 
-// ============ Minimalist Animated Intro Logic ============
+// ---- Minimalist Animated Intro Logic ----
 function playMinimalistIntro() {
     const overlay = document.getElementById('introOverlay');
     if (!overlay) return;
@@ -25,10 +25,10 @@ function playMinimalistIntro() {
 }
 window.addEventListener('DOMContentLoaded', playMinimalistIntro);
 
-// ============ NEW: Guest Mode State ============
+// ---- NEW: Guest Mode State ----
 let isGuestMode = false;
 
-// ============ NEW: Guest Mode Handler ============
+// ---- NEW: Guest Mode Handler ----
 document.addEventListener('DOMContentLoaded', () => {
     const guestBtn = document.getElementById("continueWithoutSignupBtn");
     const guestWarning = document.getElementById("guestWarning");
@@ -121,7 +121,7 @@ let mediapipeAwayTimerStart = null;
 let mediapipeEyesClosedTimerStart = null;
 let mediapipeFacePresent = false;
 let mediapipeEyesClosed = false;
-const MEDIAPIPE_EYE_AR_THRESH = 0.22; // You can adjust this value for sensitivity
+const MEDIAPIPE_EYE_AR_THRESH = 0.22;
 
 // ===================================================================================
 // DOM ELEMENTS CACHE
@@ -227,7 +227,7 @@ function loadGuestData() {
 }
 
 // ===================================================================================
-// CORE TIMER LOGIC (unchanged)
+// CORE TIMER LOGIC
 // ===================================================================================
 function updateTimerDisplay() {
     const minutes = Math.floor(timeLeft / 60);
@@ -425,11 +425,70 @@ function stopFaceDetection() {
     eyesClosedTimerStart = null;
 }
 
+const EYE_AR_THRESH = 0.22;
+
+function getEyeAspectRatio(landmarks) {
+    const leftEye = landmarks.getLeftEye();
+    const rightEye = landmarks.getRightEye();
+    const eyeAR = (eye) => {
+        const A = faceapi.euclideanDistance([eye[1].x, eye[1].y], [eye[5].x, eye[5].y]);
+        const B = faceapi.euclideanDistance([eye[2].x, eye[2].y], [eye[4].x, eye[4].y]);
+        const C = faceapi.euclideanDistance([eye[0].x, eye[0].y], [eye[3].x, eye[3].y]);
+        return (A + B) / (2.0 * C);
+    };
+    return (eyeAR(leftEye) + eyeAR(rightEye)) / 2.0;
+}
+
+async function handleFaceDetection() {
+    if (!modelsLoaded || !isRunning || DOMElements.video.paused || DOMElements.video.ended || !DOMElements.video.srcObject) return;
+    const detections = await faceapi.detectAllFaces(DOMElements.video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 })).withFaceLandmarks(true);
+
+    const faceDetected = detections.length > 0;
+
+    if (isAccountabilityOn) {
+        if (!faceDetected) {
+            if (!awayTimerStart) {
+                awayTimerStart = Date.now();
+                showFaceStatusPrompt("Are you there? Timer will pause soon...");
+            } else if (Date.now() - awayTimerStart > 15000) {
+                pauseTimer(true);
+                showFaceStatusPrompt("Timer paused. Come back to resume.");
+            }
+        } else {
+            if (awayTimerStart) {
+                awayTimerStart = null;
+                hideFaceStatusPrompt();
+                if (!isRunning && !pauseWasManual) startTimer(true);
+            }
+        }
+    }
+    
+    if (isSleepDetectionOn && faceDetected) {
+        const ear = getEyeAspectRatio(detections[0].landmarks);
+        if (ear < EYE_AR_THRESH) {
+            if (!eyesClosedTimerStart) {
+                eyesClosedTimerStart = Date.now();
+                showFaceStatusPrompt("Feeling sleepy? Timer will pause.");
+            } else if (Date.now() - eyesClosedTimerStart > 10000) {
+                pauseTimer(true);
+                showFaceStatusPrompt("Timer paused due to inactivity.");
+                playRandomSound('bad');
+            }
+        } else {
+            if (eyesClosedTimerStart) {
+                eyesClosedTimerStart = null;
+                hideFaceStatusPrompt();
+                if (!isRunning && !pauseWasManual) startTimer(true);
+            }
+        }
+    } else if (isSleepDetectionOn && !faceDetected) {
+        showFaceStatusPrompt("Face not visible");
+    }
+}
+
 // ========== NEW: Mediapipe FaceMesh Detection ==========
 // EAR calculation for FaceMesh landmarks
 function getMediapipeEyeAspectRatio(landmarks) {
-    // Left eye landmarks: 33, 160, 158, 133, 153, 144
-    // Right eye landmarks: 263, 387, 385, 362, 380, 373
     function eyeAR(indices) {
         const A = distance(landmarks[indices[1]], landmarks[indices[5]]);
         const B = distance(landmarks[indices[2]], landmarks[indices[4]]);
@@ -449,7 +508,6 @@ function startMediapipeDetection() {
     if (mediapipeActive) return;
     mediapipeActive = true;
     DOMElements.faceMeshVideo.classList.remove('hidden');
-    // Request webcam access
     mediapipeCamera = new window.Camera(DOMElements.faceMeshVideo, {
         onFrame: async () => {
             await mediapipeFaceMesh.send({image: DOMElements.faceMeshVideo});
@@ -561,8 +619,6 @@ async function initializeAppState() {
     await loadFaceApiModels();
 }
 
-// ========== MODIFIED: Settings Load/Save to support Mediapipe ==========
-
 function loadSettingsFromData() {
     const settings = currentUserData.settings || {};
     workDuration = settings.workDuration || 25 * 60;
@@ -619,114 +675,71 @@ function saveSettingsToData() {
     }
 }
 
-// ========= Rest of UI/event logic unchanged =========
-// ... (the rest of your script.js from original is unchanged, including attachMainAppEventListeners, charts, todos, etc.)
+function showCompletionPopup() { DOMElements.modals.completion.classList.add('visible'); }
+function openStats() { DOMElements.modals.stats.classList.add('visible'); renderCharts(); updateStatsDisplay(); }
+function closeStats() { DOMElements.modals.stats.classList.remove('visible'); }
+function updateStatsDisplay() {
+    const totalMinutes = currentUserData.totalFocusMinutes || 0;
+    DOMElements.modals.totalFocusTime.textContent = `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
+    DOMElements.modals.totalSessionsCount.textContent = currentUserData.totalSessions || 0;
+}
+function showSessionReview() {
+    if (!sessionStartTime || !isWorkSession) return;
+    const totalDurationMs = Date.now() - sessionStartTime;
+    const currentPauseDuration = lastPauseTimestamp ? Date.now() - lastPauseTimestamp : 0;
+    const awayTimeMs = totalAwayTime + currentPauseDuration;
+    const focusTimeMs = totalDurationMs - awayTimeMs;
+    const formatMs = (ms) => {
+        const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes}m ${seconds}s`;
+    };
 
-function attachMainAppEventListeners() {
-    DOMElements.playPauseBtn.addEventListener('click', () => isRunning ? pauseTimer() : startTimer(true));
-    DOMElements.resetBtn.addEventListener('click', resetTimer);
-    DOMElements.endSessionBtn.addEventListener('click', endSession);
-    document.getElementById('changeNameBtn').addEventListener('click', () => { const newName = prompt("Enter new name:", currentUserData.profileName); if (newName && newName.trim()) { currentUserData.profileName = newName.trim(); saveUserData(); DOMElements.profile.nameDisplay.textContent = newName.trim(); } });
-    document.getElementById('statsBtn').addEventListener('click', openStats);
-    DOMElements.modals.stats.querySelector('.close-btn').addEventListener('click', closeStats);
-    document.getElementById('closeCompletionModalBtn').addEventListener('click', () => DOMElements.modals.completion.classList.remove('visible'));
-    document.getElementById('closeReviewModalBtn').addEventListener('click', () => DOMElements.modals.review.classList.remove('visible'));
-    document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
-    document.getElementById("noiseBtn").addEventListener('click', (e) => { const noise = DOMElements.sounds.whiteNoise; noise.paused ? noise.play() : noise.pause(); e.target.textContent = noise.paused ? "🎧 Play Noise" : "🎧 Stop Noise"; });
-    document.getElementById("snowBtn").addEventListener('click', () => toggleAmbience('snow'));
-    document.getElementById("rainBtn").addEventListener('click', () => toggleAmbience('rain'));
-    document.getElementById("sakuraBtn").addEventListener('click', () => toggleAmbience('sakura'));
-    document.getElementById("focusModeBtn").addEventListener('click', toggleFocusMode);
-    DOMElements.focusMode.playPauseBtn.addEventListener('click', () => isRunning ? pauseTimer() : startTimer(true));
-    DOMElements.focusMode.exitBtn.addEventListener('click', toggleFocusMode);
-    document.getElementById("add-todo-btn").addEventListener('click', addTodo);
-    document.querySelector('.clear-todos-btn').addEventListener('click', clearTodos);
-    document.getElementById('todo-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTodo(); });
-    document.getElementById("saveSettingsBtn").addEventListener('click', saveSettingsToData);
-    DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => { 
-        isAccountabilityOn = e.target.checked; 
-        window.isAccountabilityOn = isAccountabilityOn;
-        saveSettingsToData();
-    });
-    DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => { 
-        isSleepDetectionOn = e.target.checked; 
-        window.isSleepDetectionOn = isSleepDetectionOn;
-        saveSettingsToData();
-    });
-    DOMElements.settings.mediapipeToggle.addEventListener('change', (e) => {
-        useMediapipe = e.target.checked;
-        saveSettingsToData();
-    });
-    document.getElementById('storeItems').addEventListener('click', (e) => { 
-        if (e.target.tagName !== 'BUTTON') return;
-        const item = e.target.closest('.store-item'); 
-        currentUserData.theme = {}; 
-        if (item.dataset.type === 'image') { currentUserData.theme.backgroundPath = item.dataset.path; applyBackgroundTheme(item.dataset.path); } 
-        else if (item.dataset.type === 'youtube') { currentUserData.theme.youtubeVideoId = item.dataset.id; setYoutubeBackground(item.dataset.id); }
-        saveUserData();
-        closeStats();
-    });
-    document.getElementById("setYoutubeBtn").addEventListener('click', () => {
-        const url = document.getElementById("youtube-input").value; 
-        const videoId = getYoutubeVideoId(url);
-        if (videoId) { currentUserData.theme = { youtubeVideoId: videoId, backgroundPath: null }; setYoutubeBackground(videoId); saveUserData(); } 
-        else if (url) { alert("Please enter a valid YouTube URL."); }
-    });
-    document.getElementById("clearDataBtn").addEventListener('click', async () => { if (confirm("DANGER: This will reset ALL your stats and settings permanently.")) { 
-        const soundProfile = currentUserData.settings.soundProfile;
-        currentUserData = getDefaultUserData();
-        currentUserData.settings.soundProfile = soundProfile;
-        saveUserData();
-        initializeAppState();
-        updateTimerDisplay();
-    }});
-    document.getElementById('signup-form').addEventListener('submit', async (e) => { 
-        e.preventDefault(); 
-        DOMElements.authError.textContent = ''; 
-        const email = document.getElementById('signup-email').value; 
-        const password = document.getElementById('signup-password').value; 
-        const location = document.getElementById('signup-location').value;
-        if (!location) {
-            DOMElements.authError.textContent = 'Please select where you are from.';
-            return;
-        }
-        try { 
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            userDataRef = doc(db, "users", userCredential.user.uid);
-            currentUserData = getDefaultUserData();
-            currentUserData.settings.soundProfile = location;
-            await setDoc(userDataRef, currentUserData);
-            initializeAppState();
-        } catch (error) { 
-            DOMElements.authError.textContent = error.message; 
-        } 
-    });
-    document.getElementById('login-form').addEventListener('submit', async (e) => { 
-        e.preventDefault(); 
-        DOMElements.authError.textContent = ''; 
-        const email = document.getElementById('login-email').value; 
-        const password = document.getElementById('login-password').value; 
-        try { 
-            await signInWithEmailAndPassword(auth, email, password); 
-        } catch (error) { 
-            DOMElements.authError.textContent = error.message; 
-        } 
-    });
-    document.getElementById('logoutBtn').addEventListener('click', () => { 
-        if (isGuestMode) {
-            isGuestMode = false;
-            localStorage.removeItem('youfloww_guest');
-            DOMElements.appContainer.classList.add('hidden');
-            DOMElements.authModal.classList.add('visible');
-        } else {
-            signOut(auth);
-        }
-    });
-    document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
-    document.getElementById('show-signup').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
-    setInterval(updateCornerWidget, 30000);
+    document.getElementById('reviewFocusTime').textContent = formatMs(focusTimeMs);
+    document.getElementById('reviewAwayTime').textContent = formatMs(awayTimeMs);
+    document.getElementById('reviewTotalDuration').textContent = formatMs(totalDurationMs);
+    DOMElements.modals.review.classList.add('visible');
 }
 
-// ... rest of the original code unchanged
+function loadTodos() {
+    const todos = currentUserData.todos || [];
+    const todoList = document.getElementById('todo-list');
+    todoList.innerHTML = '';
+    todos.forEach((todo, index) => {
+        const li = document.createElement('li');
+        li.className = 'todo-item';
+        li.innerHTML = `<input type="checkbox" id="todo-${index}" ${todo.completed ? 'checked' : ''}> <label for="todo-${index}">${todo.text}</label>`;
+        li.querySelector('input').onchange = () => toggleTodo(index);
+        todoList.appendChild(li);
+    });
+}
+function addTodo() { const input = document.getElementById('todo-input'); if (input.value.trim()) { if (!currentUserData.todos) currentUserData.todos = []; currentUserData.todos.push({ text: input.value.trim(), completed: false }); saveUserData(); input.value = ''; loadTodos(); } }
+function toggleTodo(index) { if (currentUserData.todos[index]) { currentUserData.todos[index].completed = !currentUserData.todos[index].completed; saveUserData(); loadTodos(); } }
+function clearTodos() { if (confirm("Clear all tasks?")) { currentUserData.todos = []; saveUserData(); loadTodos(); } }
 
-attachMainAppEventListeners();
+function updateCornerWidget() {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayProgress = ((now - startOfDay) / (1000 * 60 * 60 * 24)) * 100;
+    document.getElementById("dayProgressBar").style.width = `${Math.min(dayProgress,100)}%`;
+    document.getElementById("dayProgressPercent").textContent = `${Math.floor(Math.min(dayProgress,100))}%`;
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const monthProgress = (now.getDate() / endOfMonth.getDate()) * 100;
+    document.getElementById("monthProgressBar").style.width = `${Math.min(monthProgress,100)}%`;
+    document.getElementById("monthProgressPercent").textContent = `${Math.floor(Math.min(monthProgress,100))}%`;
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const isLeap = new Date(now.getFullYear(), 1, 29).getMonth() === 1;
+    const totalDaysInYear = isLeap ? 366 : 365;
+    const dayOfYear = Math.floor((now - startOfYear) / 86400000) + 1;
+    const yearProgress = (dayOfYear / totalDaysInYear) * 100;
+    document.getElementById("yearProgressBar").style.width = `${Math.min(yearProgress,100)}%`;
+    document.getElementById("yearProgressPercent").textContent = `${Math.floor(Math.min(yearProgress,100))}%`;
+}
+
+function toggleFocusMode() { document.body.classList.toggle('focus-mode'); }
+
+function ambientLoop(timestamp) {
+    if (isSnowActive && timestamp - lastSnowSpawn > SNOW_INTERVAL) { lastSnowSpawn = timestamp; createAndAnimateElement('snowflake', 8, 15, 'fall'); }
+    if (isRainActive && timestamp - lastRainSpawn > RAIN_INTERVAL) { lastRainSpawn = timestamp; createAndAnimateElement('raindrop', 0.4, 0.8, 'fall'); }
+    if (is
