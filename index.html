@@ -9,11 +9,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-V3CLSWYVTF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-V3CLSWYVTF');
+    </script>
 </head>
 <body>
-
 <div id="video-background-container"></div>
-<video id="video" width="640" height="480" autoplay muted playsinline style="display: none; position: absolute; top:0; left:0;"></video>
+<video id="video" width="720" height="560" autoplay muted playsinline class="hidden"></video>
 <div id="face-detection-status" class="face-status-prompt hidden"></div>
 
 <div id="authModal" class="modal visible">
