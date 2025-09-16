@@ -4,7 +4,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, on
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js";
 
-// ---- Minimalist Animated Intro Logic ----
+// ============ Minimalist Animated Intro Logic ============
 function playMinimalistIntro() {
     const overlay = document.getElementById('introOverlay');
     if (!overlay) return;
@@ -25,10 +25,10 @@ function playMinimalistIntro() {
 }
 window.addEventListener('DOMContentLoaded', playMinimalistIntro);
 
-// ---- NEW: Guest Mode State ----
+// ============ NEW: Guest Mode State ============
 let isGuestMode = false;
 
-// ---- NEW: Guest Mode Handler ----
+// ============ NEW: Guest Mode Handler ============
 document.addEventListener('DOMContentLoaded', () => {
     const guestBtn = document.getElementById("continueWithoutSignupBtn");
     const guestWarning = document.getElementById("guestWarning");
@@ -60,7 +60,6 @@ function getDefaultUserData() {
             soundProfile: "indian",
             isAccountabilityOn: false,
             isSleepDetectionOn: false,
-            useMediapipe: false // NEW: Option to use Mediapipe
         },
         theme: { backgroundPath: null, youtubeVideoId: null }
     };
@@ -113,22 +112,11 @@ let awayTimerStart = null;
 let eyesClosedTimerStart = null;
 let modelsLoaded = false; // Flag to check if face-api models are loaded
 
-// ========== NEW: Mediapipe FaceMesh State ==========
-let useMediapipe = false;
-let mediapipeCamera = null;
-let mediapipeActive = false;
-let mediapipeAwayTimerStart = null;
-let mediapipeEyesClosedTimerStart = null;
-let mediapipeFacePresent = false;
-let mediapipeEyesClosed = false;
-const MEDIAPIPE_EYE_AR_THRESH = 0.22;
-
 // ===================================================================================
 // DOM ELEMENTS CACHE
 // ===================================================================================
 const DOMElements = {
     video: document.getElementById("video"),
-    faceMeshVideo: document.getElementById("faceMeshVideo"),
     timerDisplay: document.getElementById("timer"),
     statusDisplay: document.getElementById("status"),
     playPauseBtn: document.getElementById("playPauseBtn"),
@@ -165,7 +153,6 @@ const DOMElements = {
         soundEffects: document.getElementById('sound-effects-select'),
         accountabilityToggle: document.getElementById('accountability-toggle'),
         sleepDetectionToggle: document.getElementById('sleep-detection-toggle'),
-        mediapipeToggle: document.getElementById('mediapipe-toggle'), // NEW
     },
     sounds: {
         whiteNoise: document.getElementById("whiteNoise"),
@@ -185,7 +172,7 @@ const DOMElements = {
 };
 
 // ===================================================================================
-// FIREBASE AUTH & DATA (unchanged)
+// FIREBASE AUTH & DATA
 // ===================================================================================
 onAuthStateChanged(auth, user => {
     if (user) {
@@ -276,13 +263,9 @@ function startTimer(isResume = false) {
     }
     endTime = Date.now() + timeLeft * 1000;
     updateUIState();
-    // ============== MODIFIED: Use face detection source ==============
-    if ((isAccountabilityOn || isSleepDetectionOn) && useMediapipe) {
+    if (isAccountabilityOn || isSleepDetectionOn) {
         startMediapipeDetection();
-    } else if (isAccountabilityOn || isSleepDetectionOn) {
-        startFaceDetection();
     }
-    // ===============================================================
     timerInterval = setInterval(() => {
         timeLeft = Math.round((endTime - Date.now()) / 1000);
         if (timeLeft <= 0) {
@@ -296,7 +279,7 @@ function startTimer(isResume = false) {
         }
     }, 1000);
 
-    if ((isAccountabilityOn || isSleepDetectionOn) && !useMediapipe && !DOMElements.video.srcObject) {
+    if ((isAccountabilityOn || isSleepDetectionOn) && !DOMElements.video.srcObject) {
         startVideo();
     }
 }
@@ -371,80 +354,78 @@ function handleEndOfWorkSession(minutesFocused, sessionCompleted) {
 }
 
 // ===================================================================================
-// ACCOUNTABILITY AI (FACE-API.JS, unchanged)
+// ACCOUNTABILITY AI (FACE-API.JS)
 // ===================================================================================
-async function loadFaceApiModels() {
-    if (modelsLoaded) return;
-    const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
-    try {
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-        await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
-        modelsLoaded = true;
-    } catch (error) {
-        alert("Could not load accountability models. Please check your connection and refresh.");
+// ---- original code unchanged, but replaced with Mediapipe ----
+
+// ---- MEDIAPIPE INTEGRATION ----
+let mediapipeCamera = null;
+let mediapipeActive = false;
+
+const mediapipeFaceMesh = new window.FaceMesh({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+});
+mediapipeFaceMesh.setOptions({
+    maxNumFaces: 1,
+    refineLandmarks: true,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+});
+mediapipeFaceMesh.onResults(handleMediapipeResults);
+
+function startMediapipeDetection() {
+    if (mediapipeActive) return;
+    mediapipeActive = true;
+    // Add a hidden video element for mediapipe if not present
+    let faceMeshVideo = document.getElementById('faceMeshVideo');
+    if (!faceMeshVideo) {
+        faceMeshVideo = document.createElement('video');
+        faceMeshVideo.setAttribute('id', 'faceMeshVideo');
+        faceMeshVideo.setAttribute('autoplay', true);
+        faceMeshVideo.setAttribute('muted', true);
+        faceMeshVideo.setAttribute('playsinline', true);
+        faceMeshVideo.className = "hidden";
+        document.body.appendChild(faceMeshVideo);
     }
+    mediapipeCamera = new window.Camera(faceMeshVideo, {
+        onFrame: async () => await mediapipeFaceMesh.send({image: faceMeshVideo}),
+        width: 480, height: 320
+    });
+    mediapipeCamera.start();
 }
 
-async function startVideo() {
-    try {
-        if (DOMElements.video.srcObject) return;
-        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-        DOMElements.video.srcObject = stream;
-    } catch (err) {
-        alert("Camera access is required for Accountability features. Please allow access and refresh.");
-        DOMElements.settings.accountabilityToggle.checked = false;
-        DOMElements.settings.sleepDetectionToggle.checked = false;
-        isAccountabilityOn = false;
-        isSleepDetectionOn = false;
-        window.isAccountabilityOn = isAccountabilityOn;
-        window.isSleepDetectionOn = isSleepDetectionOn;
-        saveSettingsToData();
-    }
-}
-
-function stopVideo() {
-    if (DOMElements.video.srcObject) {
-        DOMElements.video.srcObject.getTracks().forEach(track => track.stop());
-        DOMElements.video.srcObject = null;
-    }
-}
-
-function startFaceDetection() {
-    if (!faceApiInterval && (isAccountabilityOn || isSleepDetectionOn)) {
-        faceApiInterval = setInterval(handleFaceDetection, 500);
-        window.faceApiInterval = faceApiInterval;
-    }
-}
-
-function stopFaceDetection() {
-    clearInterval(faceApiInterval);
-    faceApiInterval = null;
-    window.faceApiInterval = faceApiInterval;
+function stopMediapipeDetection() {
+    mediapipeActive = false;
+    try { if (mediapipeCamera) mediapipeCamera.stop(); } catch {}
+    let faceMeshVideo = document.getElementById('faceMeshVideo');
+    if (faceMeshVideo) faceMeshVideo.classList.add('hidden');
+    awayTimerStart = null; eyesClosedTimerStart = null;
     hideFaceStatusPrompt();
-    awayTimerStart = null;
-    eyesClosedTimerStart = null;
 }
 
-const EYE_AR_THRESH = 0.22;
-
-function getEyeAspectRatio(landmarks) {
-    const leftEye = landmarks.getLeftEye();
-    const rightEye = landmarks.getRightEye();
-    const eyeAR = (eye) => {
-        const A = faceapi.euclideanDistance([eye[1].x, eye[1].y], [eye[5].x, eye[5].y]);
-        const B = faceapi.euclideanDistance([eye[2].x, eye[2].y], [eye[4].x, eye[4].y]);
-        const C = faceapi.euclideanDistance([eye[0].x, eye[0].y], [eye[3].x, eye[3].y]);
+function getMediapipeEyeAspectRatio(landmarks) {
+    function eyeAR(indices) {
+        const A = dist(landmarks[indices[1]], landmarks[indices[5]]);
+        const B = dist(landmarks[indices[2]], landmarks[indices[4]]);
+        const C = dist(landmarks[indices[0]], landmarks[indices[3]]);
         return (A + B) / (2.0 * C);
-    };
-    return (eyeAR(leftEye) + eyeAR(rightEye)) / 2.0;
+    }
+    function dist(p1, p2) { return Math.hypot(p1.x - p2.x, p1.y - p2.y); }
+    const left = eyeAR([33,160,158,133,153,144]);
+    const right = eyeAR([263,387,385,362,380,373]);
+    return (left + right) / 2.0;
 }
 
-async function handleFaceDetection() {
-    if (!modelsLoaded || !isRunning || DOMElements.video.paused || DOMElements.video.ended || !DOMElements.video.srcObject) return;
-    const detections = await faceapi.detectAllFaces(DOMElements.video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 })).withFaceLandmarks(true);
-
-    const faceDetected = detections.length > 0;
-
+function handleMediapipeResults(results) {
+    if (!mediapipeActive || !isRunning) return;
+    const faceDetected = results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0;
+    let eyesClosed = false;
+    if (faceDetected) {
+        const landmarks = results.multiFaceLandmarks[0];
+        const ear = getMediapipeEyeAspectRatio(landmarks);
+        eyesClosed = ear < 0.22;
+    }
+    // Presence detection
     if (isAccountabilityOn) {
         if (!faceDetected) {
             if (!awayTimerStart) {
@@ -462,10 +443,9 @@ async function handleFaceDetection() {
             }
         }
     }
-    
+    // Sleep detection
     if (isSleepDetectionOn && faceDetected) {
-        const ear = getEyeAspectRatio(detections[0].landmarks);
-        if (ear < EYE_AR_THRESH) {
+        if (eyesClosed) {
             if (!eyesClosedTimerStart) {
                 eyesClosedTimerStart = Date.now();
                 showFaceStatusPrompt("Feeling sleepy? Timer will pause.");
@@ -477,116 +457,6 @@ async function handleFaceDetection() {
         } else {
             if (eyesClosedTimerStart) {
                 eyesClosedTimerStart = null;
-                hideFaceStatusPrompt();
-                if (!isRunning && !pauseWasManual) startTimer(true);
-            }
-        }
-    } else if (isSleepDetectionOn && !faceDetected) {
-        showFaceStatusPrompt("Face not visible");
-    }
-}
-
-// ========== NEW: Mediapipe FaceMesh Detection ==========
-// EAR calculation for FaceMesh landmarks
-function getMediapipeEyeAspectRatio(landmarks) {
-    function eyeAR(indices) {
-        const A = distance(landmarks[indices[1]], landmarks[indices[5]]);
-        const B = distance(landmarks[indices[2]], landmarks[indices[4]]);
-        const C = distance(landmarks[indices[0]], landmarks[indices[3]]);
-        return (A + B) / (2.0 * C);
-    }
-    function distance(p1, p2) {
-        return Math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2);
-    }
-    const left = eyeAR([33, 160, 158, 133, 153, 144]);
-    const right = eyeAR([263, 387, 385, 362, 380, 373]);
-    return (left + right) / 2.0;
-}
-
-// Setup and start Mediapipe Camera and FaceMesh
-function startMediapipeDetection() {
-    if (mediapipeActive) return;
-    mediapipeActive = true;
-    DOMElements.faceMeshVideo.classList.remove('hidden');
-    mediapipeCamera = new window.Camera(DOMElements.faceMeshVideo, {
-        onFrame: async () => {
-            await mediapipeFaceMesh.send({image: DOMElements.faceMeshVideo});
-        },
-        width: 640,
-        height: 480
-    });
-    mediapipeCamera.start();
-}
-
-// Stop Mediapipe detection and camera
-function stopMediapipeDetection() {
-    mediapipeActive = false;
-    try {
-        if (mediapipeCamera) mediapipeCamera.stop();
-    } catch {}
-    DOMElements.faceMeshVideo.classList.add('hidden');
-    mediapipeAwayTimerStart = null;
-    mediapipeEyesClosedTimerStart = null;
-    hideFaceStatusPrompt();
-}
-
-// Setup and config for Mediapipe FaceMesh
-const mediapipeFaceMesh = new window.FaceMesh({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-});
-mediapipeFaceMesh.setOptions({
-    maxNumFaces: 1,
-    refineLandmarks: true,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5
-});
-
-mediapipeFaceMesh.onResults(handleMediapipeResults);
-
-// Main detection handler for Mediapipe
-function handleMediapipeResults(results) {
-    if (!mediapipeActive || !isRunning) return;
-    const faceDetected = results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0;
-    let eyesClosed = false;
-    if (faceDetected) {
-        const landmarks = results.multiFaceLandmarks[0];
-        const ear = getMediapipeEyeAspectRatio(landmarks);
-        eyesClosed = ear < MEDIAPIPE_EYE_AR_THRESH;
-    }
-
-    // Presence detection
-    if (isAccountabilityOn) {
-        if (!faceDetected) {
-            if (!mediapipeAwayTimerStart) {
-                mediapipeAwayTimerStart = Date.now();
-                showFaceStatusPrompt("Are you there? Timer will pause soon...");
-            } else if (Date.now() - mediapipeAwayTimerStart > 15000) {
-                pauseTimer(true);
-                showFaceStatusPrompt("Timer paused. Come back to resume.");
-            }
-        } else {
-            if (mediapipeAwayTimerStart) {
-                mediapipeAwayTimerStart = null;
-                hideFaceStatusPrompt();
-                if (!isRunning && !pauseWasManual) startTimer(true);
-            }
-        }
-    }
-
-    // Sleep detection
-    if (isSleepDetectionOn && faceDetected) {
-        if (eyesClosed) {
-            if (!mediapipeEyesClosedTimerStart) {
-                mediapipeEyesClosedTimerStart = Date.now();
-                showFaceStatusPrompt("Feeling sleepy? Timer will pause.");
-            } else if (Date.now() - mediapipeEyesClosedTimerStart > 10000) {
-                pauseTimer(true);
-                showFaceStatusPrompt("Timer paused due to inactivity.");
-                playRandomSound('bad');
-            }
-        } else {
-            if (mediapipeEyesClosedTimerStart) {
-                mediapipeEyesClosedTimerStart = null;
                 hideFaceStatusPrompt();
                 if (!isRunning && !pauseWasManual) startTimer(true);
             }
@@ -636,11 +506,9 @@ function loadSettingsFromData() {
     DOMElements.settings.soundEffects.value = settings.soundProfile || 'indian';
     DOMElements.settings.accountabilityToggle.checked = settings.isAccountabilityOn || false;
     DOMElements.settings.sleepDetectionToggle.checked = settings.isSleepDetectionOn || false;
-    DOMElements.settings.mediapipeToggle.checked = settings.useMediapipe || false;
 
     isAccountabilityOn = settings.isAccountabilityOn || false;
     isSleepDetectionOn = settings.isSleepDetectionOn || false;
-    useMediapipe = settings.useMediapipe || false;
     window.isAccountabilityOn = isAccountabilityOn;
     window.isSleepDetectionOn = isSleepDetectionOn;
 }
@@ -658,11 +526,9 @@ function saveSettingsToData() {
         currentUserData.settings.soundProfile = DOMElements.settings.soundEffects.value;
         currentUserData.settings.isAccountabilityOn = DOMElements.settings.accountabilityToggle.checked;
         currentUserData.settings.isSleepDetectionOn = DOMElements.settings.sleepDetectionToggle.checked;
-        currentUserData.settings.useMediapipe = DOMElements.settings.mediapipeToggle.checked || false;
 
         isAccountabilityOn = DOMElements.settings.accountabilityToggle.checked;
         isSleepDetectionOn = DOMElements.settings.sleepDetectionToggle.checked;
-        useMediapipe = DOMElements.settings.mediapipeToggle.checked || false;
         window.isAccountabilityOn = isAccountabilityOn;
         window.isSleepDetectionOn = isSleepDetectionOn;
 
@@ -676,7 +542,11 @@ function saveSettingsToData() {
 }
 
 function showCompletionPopup() { DOMElements.modals.completion.classList.add('visible'); }
-function openStats() { DOMElements.modals.stats.classList.add('visible'); renderCharts(); updateStatsDisplay(); }
+function openStats() { 
+    DOMElements.modals.stats.classList.add('visible'); 
+    renderCharts(); 
+    updateStatsDisplay(); 
+}
 function closeStats() { DOMElements.modals.stats.classList.remove('visible'); }
 function updateStatsDisplay() {
     const totalMinutes = currentUserData.totalFocusMinutes || 0;
@@ -718,28 +588,150 @@ function addTodo() { const input = document.getElementById('todo-input'); if (in
 function toggleTodo(index) { if (currentUserData.todos[index]) { currentUserData.todos[index].completed = !currentUserData.todos[index].completed; saveUserData(); loadTodos(); } }
 function clearTodos() { if (confirm("Clear all tasks?")) { currentUserData.todos = []; saveUserData(); loadTodos(); } }
 
+// --- FIXED: CornerWidget Progress Bars ---
 function updateCornerWidget() {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const dayProgress = ((now - startOfDay) / (1000 * 60 * 60 * 24)) * 100;
-    document.getElementById("dayProgressBar").style.width = `${Math.min(dayProgress,100)}%`;
-    document.getElementById("dayProgressPercent").textContent = `${Math.floor(Math.min(dayProgress,100))}%`;
+    const dayProgress = ((now - startOfDay) / 86400000) * 100;
+    document.getElementById("dayProgressBar").style.width = `${dayProgress}%`;
+    document.getElementById("dayProgressPercent").textContent = `${Math.floor(dayProgress)}%`;
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const monthProgress = (now.getDate() / endOfMonth.getDate()) * 100;
-    document.getElementById("monthProgressBar").style.width = `${Math.min(monthProgress,100)}%`;
-    document.getElementById("monthProgressPercent").textContent = `${Math.floor(Math.min(monthProgress,100))}%`;
+    const monthProgress = ((now.getDate()-1 + now.getHours()/24 + now.getMinutes()/1440 + now.getSeconds()/86400) / endOfMonth.getDate()) * 100;
+    document.getElementById("monthProgressBar").style.width = `${monthProgress}%`;
+    document.getElementById("monthProgressPercent").textContent = `${Math.floor(monthProgress)}%`;
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     const isLeap = new Date(now.getFullYear(), 1, 29).getMonth() === 1;
     const totalDaysInYear = isLeap ? 366 : 365;
-    const dayOfYear = Math.floor((now - startOfYear) / 86400000) + 1;
+    const dayOfYear = Math.floor((now - startOfYear) / 86400000) + 1 - 1 + now.getHours()/24 + now.getMinutes()/1440 + now.getSeconds()/86400;
     const yearProgress = (dayOfYear / totalDaysInYear) * 100;
-    document.getElementById("yearProgressBar").style.width = `${Math.min(yearProgress,100)}%`;
-    document.getElementById("yearProgressPercent").textContent = `${Math.floor(Math.min(yearProgress,100))}%`;
+    document.getElementById("yearProgressBar").style.width = `${yearProgress}%`;
+    document.getElementById("yearProgressPercent").textContent = `${Math.floor(yearProgress)}%`;
 }
 
-function toggleFocusMode() { document.body.classList.toggle('focus-mode'); }
+// --- FIXED: Stats Modal opening ---
+function attachMainAppEventListeners() {
+    DOMElements.playPauseBtn.addEventListener('click', () => isRunning ? pauseTimer() : startTimer(true));
+    DOMElements.resetBtn.addEventListener('click', resetTimer);
+    DOMElements.endSessionBtn.addEventListener('click', endSession);
+    document.getElementById('changeNameBtn').addEventListener('click', () => { const newName = prompt("Enter new name:", currentUserData.profileName); if (newName && newName.trim()) { currentUserData.profileName = newName.trim(); saveUserData(); DOMElements.profile.nameDisplay.textContent = newName.trim(); } });
+    document.getElementById('statsBtn').addEventListener('click', openStats);
+    DOMElements.modals.stats.querySelector('.close-btn').addEventListener('click', closeStats); // <-- FIXED: Close stats modal
+    document.getElementById('closeCompletionModalBtn').addEventListener('click', () => DOMElements.modals.completion.classList.remove('visible'));
+    document.getElementById('closeReviewModalBtn').addEventListener('click', () => DOMElements.modals.review.classList.remove('visible'));
+    document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
+    document.getElementById("noiseBtn").addEventListener('click', (e) => { const noise = DOMElements.sounds.whiteNoise; noise.paused ? noise.play() : noise.pause(); e.target.textContent = noise.paused ? "🎧 Play Noise" : "🎧 Stop Noise"; });
+    document.getElementById("snowBtn").addEventListener('click', () => toggleAmbience('snow'));
+    document.getElementById("rainBtn").addEventListener('click', () => toggleAmbience('rain'));
+    document.getElementById("sakuraBtn").addEventListener('click', () => toggleAmbience('sakura'));
+    document.getElementById("focusModeBtn").addEventListener('click', toggleFocusMode);
+    DOMElements.focusMode.playPauseBtn.addEventListener('click', () => isRunning ? pauseTimer() : startTimer(true));
+    DOMElements.focusMode.exitBtn.addEventListener('click', toggleFocusMode);
+    document.getElementById("add-todo-btn").addEventListener('click', addTodo);
+    document.querySelector('.clear-todos-btn').addEventListener('click', clearTodos);
+    document.getElementById('todo-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTodo(); });
+    document.getElementById("saveSettingsBtn").addEventListener('click', saveSettingsToData);
+    DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => { 
+        isAccountabilityOn = e.target.checked; 
+        window.isAccountabilityOn = isAccountabilityOn;
+        saveSettingsToData();
+    });
+    DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => { 
+        isSleepDetectionOn = e.target.checked; 
+        window.isSleepDetectionOn = isSleepDetectionOn;
+        saveSettingsToData();
+    });
+    document.getElementById('storeItems').addEventListener('click', (e) => { 
+        if (e.target.tagName !== 'BUTTON') return;
+        const item = e.target.closest('.store-item'); 
+        currentUserData.theme = {}; 
+        if (item.dataset.type === 'image') { currentUserData.theme.backgroundPath = item.dataset.path; applyBackgroundTheme(item.dataset.path); } 
+        else if (item.dataset.type === 'youtube') { currentUserData.theme.youtubeVideoId = item.dataset.id; setYoutubeBackground(item.dataset.id); }
+        saveUserData();
+        closeStats();
+    });
+    document.getElementById("setYoutubeBtn").addEventListener('click', () => {
+        const url = document.getElementById("youtube-input").value; 
+        const videoId = getYoutubeVideoId(url);
+        if (videoId) { currentUserData.theme = { youtubeVideoId: videoId, backgroundPath: null }; setYoutubeBackground(videoId); saveUserData(); } 
+        else if (url) { alert("Please enter a valid YouTube URL."); }
+    });
+    document.getElementById("clearDataBtn").addEventListener('click', async () => { if (confirm("DANGER: This will reset ALL your stats and settings permanently.")) { 
+        const soundProfile = currentUserData.settings.soundProfile;
+        currentUserData = getDefaultUserData();
+        currentUserData.settings.soundProfile = soundProfile;
+        saveUserData();
+        initializeAppState();
+        updateTimerDisplay();
+    }});
+    document.getElementById('signup-form').addEventListener('submit', async (e) => { 
+        e.preventDefault(); 
+        DOMElements.authError.textContent = ''; 
+        const email = document.getElementById('signup-email').value; 
+        const password = document.getElementById('signup-password').value; 
+        const location = document.getElementById('signup-location').value;
+        if (!location) {
+            DOMElements.authError.textContent = 'Please select where you are from.';
+            return;
+        }
+        try { 
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            userDataRef = doc(db, "users", userCredential.user.uid);
+            currentUserData = getDefaultUserData();
+            currentUserData.settings.soundProfile = location;
+            await setDoc(userDataRef, currentUserData);
+            initializeAppState();
+        } catch (error) { 
+            DOMElements.authError.textContent = error.message; 
+        } 
+    });
+    document.getElementById('login-form').addEventListener('submit', async (e) => { 
+        e.preventDefault(); 
+        DOMElements.authError.textContent = ''; 
+        const email = document.getElementById('login-email').value; 
+        const password = document.getElementById('login-password').value; 
+        try { 
+            await signInWithEmailAndPassword(auth, email, password); 
+        } catch (error) { 
+            DOMElements.authError.textContent = error.message; 
+        } 
+    });
+    document.getElementById('logoutBtn').addEventListener('click', () => { 
+        if (isGuestMode) {
+            isGuestMode = false;
+            localStorage.removeItem('youfloww_guest');
+            DOMElements.appContainer.classList.add('hidden');
+            DOMElements.authModal.classList.add('visible');
+        } else {
+            signOut(auth);
+        }
+    });
+    document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
+    document.getElementById('show-signup').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
+    setInterval(updateCornerWidget, 30000);
+}
 
-function ambientLoop(timestamp) {
-    if (isSnowActive && timestamp - lastSnowSpawn > SNOW_INTERVAL) { lastSnowSpawn = timestamp; createAndAnimateElement('snowflake', 8, 15, 'fall'); }
-    if (isRainActive && timestamp - lastRainSpawn > RAIN_INTERVAL) { lastRainSpawn = timestamp; createAndAnimateElement('raindrop', 0.4, 0.8, 'fall'); }
-    if (is
+function renderCharts() {
+    const weeklyData = currentUserData.weeklyFocus || {};
+    const today = new Date();
+    const labels = Array.from({ length: 7 }, (_, i) => { const d = new Date(today); d.setDate(today.getDate() - (6 - i)); return d.toLocaleDateString('en-US', { weekday: 'short' }); });
+    const data = labels.map((_, i) => { const d = new Date(today); d.setDate(today.getDate() - (6 - i)); const key = d.toISOString().slice(0, 10); return (weeklyData[key] || 0) / 60; });
+    const barCtx = document.getElementById('barChart').getContext('2d');
+    if (window.myBarChart) window.myBarChart.destroy();
+    window.myBarChart = new Chart(barCtx, { type: 'bar', data: { labels, datasets: [{ label: 'Daily Focus (hours)', data, backgroundColor: '#f7a047', borderRadius: 5 }] }, options: { maintainAspectRatio: false, responsive: true } });
+    const totalFocus = currentUserData.totalFocusMinutes || 0;
+    const totalSessions = currentUserData.totalSessions || 0;
+    const totalBreak = totalSessions * ((currentUserData.settings?.shortBreakDuration || 300) / 60);
+    const pieCtx = document.getElementById('pieChart').getContext('2d');
+    if(window.myPieChart) window.myPieChart.destroy();
+    window.myPieChart = new Chart(pieCtx, {type: 'pie', data: { labels: ['Work', 'Break'], datasets: [{ data: [totalFocus, totalBreak], backgroundColor: ['#f7a047', '#6c63ff'] }] }, options: { maintainAspectRatio: false, responsive: true }});
+}
+
+function switchTab(tabName) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(`${tabName}Container`).classList.add('active');
+}
+
+attachMainAppEventListeners();
+updateCornerWidget(); // Ensure progress bars show correct values on load
