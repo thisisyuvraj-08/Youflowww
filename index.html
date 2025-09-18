@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-V3CLSWYVTF"></script>
@@ -105,7 +106,7 @@
                     <input type="text" id="todo-input" placeholder="Add a new task..." aria-label="Add a new task">
                     <button id="add-todo-btn">Add</button>
                 </div>
-                <ul id="todo-list"></ul>
+                <ul id="todo-list" class="sortable-list"></ul>
                 <button class="clear-todos-btn">Clear All Tasks</button>
             </div>
             <div class="controls-container">
@@ -119,6 +120,86 @@
                      <button id="snowBtn" class="ambience-toggle-btn">❄️ Snow</button>
                      <button id="rainBtn" class="ambience-toggle-btn">🌧️ Rain</button>
                      <button id="sakuraBtn" class="ambience-toggle-btn">🌸 Sakura</button>
+                </div>
+            </div>
+        </section>
+        
+        <!-- New Journal Section -->
+        <section id="journal-section" class="hidden">
+            <div class="section-header">
+                <h2><i class="fas fa-book-open"></i> Daily Journal</h2>
+                <div class="journal-date">
+                    <span id="journal-current-date"></span>
+                </div>
+            </div>
+            <div class="journal-container">
+                <div class="journal-status">
+                    <span id="journal-char-count">0/1024</span> characters
+                    <span id="journal-save-status" class="journal-save-status"></span>
+                </div>
+                <textarea id="journal-entry" placeholder="Write about your day... (max 1024 characters)" maxlength="1024"></textarea>
+                <div class="journal-controls">
+                    <button id="upload-image-btn" class="journal-btn">
+                        <i class="fas fa-image"></i> Add Image
+                    </button>
+                    <input type="file" id="journal-image-upload" accept="image/*" class="hidden">
+                    <button id="save-journal-btn" class="journal-btn primary">
+                        <i class="fas fa-save"></i> Save Entry
+                    </button>
+                </div>
+                <div id="journal-image-preview" class="journal-image-preview hidden"></div>
+                <div id="journal-previous-entries" class="journal-previous-entries">
+                    <h3>Previous Entries</h3>
+                    <div id="journal-entries-list"></div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- New Timetable Section -->
+        <section id="timetable-section" class="hidden">
+            <div class="section-header">
+                <h2><i class="fas fa-calendar-alt"></i> Personal Timetable</h2>
+                <div class="timetable-controls">
+                    <button id="add-timeslot-btn" class="timetable-btn">
+                        <i class="fas fa-plus"></i> Add Time Slot
+                    </button>
+                    <button id="clear-timetable-btn" class="timetable-btn danger">
+                        <i class="fas fa-trash"></i> Clear All
+                    </button>
+                </div>
+            </div>
+            <div class="timetable-container">
+                <div class="timetable-days">
+                    <div class="timetable-day" data-day="monday">Monday</div>
+                    <div class="timetable-day" data-day="tuesday">Tuesday</div>
+                    <div class="timetable-day" data-day="wednesday">Wednesday</div>
+                    <div class="timetable-day" data-day="thursday">Thursday</div>
+                    <div class="timetable-day" data-day="friday">Friday</div>
+                    <div class="timetable-day" data-day="saturday">Saturday</div>
+                    <div class="timetable-day" data-day="sunday">Sunday</div>
+                </div>
+                <div class="timetable-slots-container">
+                    <div class="timetable-hours">
+                        <div class="timetable-hour">6 AM</div>
+                        <div class="timetable-hour">7 AM</div>
+                        <div class="timetable-hour">8 AM</div>
+                        <div class="timetable-hour">9 AM</div>
+                        <div class="timetable-hour">10 AM</div>
+                        <div class="timetable-hour">11 AM</div>
+                        <div class="timetable-hour">12 PM</div>
+                        <div class="timetable-hour">1 PM</div>
+                        <div class="timetable-hour">2 PM</div>
+                        <div class="timetable-hour">3 PM</div>
+                        <div class="timetable-hour">4 PM</div>
+                        <div class="timetable-hour">5 PM</div>
+                        <div class="timetable-hour">6 PM</div>
+                        <div class="timetable-hour">7 PM</div>
+                        <div class="timetable-hour">8 PM</div>
+                        <div class="timetable-hour">9 PM</div>
+                    </div>
+                    <div class="timetable-slots">
+                        <!-- Time slots will be generated by JavaScript -->
+                    </div>
                 </div>
             </div>
         </section>
@@ -136,6 +217,8 @@
             <div class="tab" data-tab="store">🛒 Themes</div>
             <div class="tab" data-tab="settings">⚙️ Settings</div>
             <div class="tab" data-tab="profile">👤 Profile</div>
+            <div class="tab" data-tab="journal">📔 Journal</div>
+            <div class="tab" data-tab="timetable">📅 Timetable</div>
         </div>
         <div id="statsContainer" class="tab-content active">
              <p class="stats-summary">Total Focus: <strong id="totalFocusTime">0h 0m</strong> | Total Sessions: <strong id="totalSessionsCount">0</strong></p>
@@ -220,6 +303,20 @@
                 <button id="clearDataBtn" class="btn-danger">Clear All Data</button>
             </div>
         </div>
+        <div id="journalContainer" class="tab-content">
+            <div class="journal-tab-content">
+                <h3>Your Journal Entries</h3>
+                <div id="journal-tab-entries" class="journal-tab-entries">
+                    <!-- Journal entries will be displayed here -->
+                </div>
+            </div>
+        </div>
+        <div id="timetableContainer" class="tab-content">
+            <div class="timetable-tab-content">
+                <h3>Your Weekly Schedule</h3>
+                <p>View and manage your timetable from the main timetable section.</p>
+            </div>
+        </div>
     </div>
 </div>
 <div id="cornerWidget">
@@ -295,6 +392,49 @@
     </div>
     <div id="pip-resize-handle"></div>
 </div>
+
+<!-- macOS Dock Navigation -->
+<nav id="mac-dock">
+    <div class="dock-container">
+        <div class="dock-item" data-section="timer">
+            <div class="dock-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <span class="dock-label">Timer</span>
+        </div>
+        <div class="dock-item" data-section="todo">
+            <div class="dock-icon">
+                <i class="fas fa-tasks"></i>
+            </div>
+            <span class="dock-label">Tasks</span>
+        </div>
+        <div class="dock-item" data-section="journal">
+            <div class="dock-icon">
+                <i class="fas fa-book"></i>
+            </div>
+            <span class="dock-label">Journal</span>
+        </div>
+        <div class="dock-item" data-section="timetable">
+            <div class="dock-icon">
+                <i class="fas fa-calendar"></i>
+            </div>
+            <span class="dock-label">Schedule</span>
+        </div>
+        <div class="dock-item" data-section="stats">
+            <div class="dock-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <span class="dock-label">Stats</span>
+        </div>
+        <div class="dock-item" data-section="settings">
+            <div class="dock-icon">
+                <i class="fas fa-cog"></i>
+            </div>
+            <span class="dock-label">Settings</span>
+        </div>
+    </div>
+</nav>
+
 <audio id="whiteNoise" loop><source src="whitenoise.mp3" type="audio/mpeg"></audio>
 <audio id="pauseAlertSound"><source src="https://actions.google.com/sounds/v1/ui/close_button_pressed.ogg" type="audio/ogg"></audio>
 <audio id="resumeAlertSound"><source src="https://actions.google.com/sounds/v1/ui/button_press.ogg" type="audio/ogg"></audio>
