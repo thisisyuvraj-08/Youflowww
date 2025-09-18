@@ -52,6 +52,8 @@ function getDefaultUserData() {
         lastStreakDate: null,
         weeklyFocus: {},
         todos: [],
+        journalEntries: {},
+        timetable: {},
         settings: {
             workDuration: 25 * 60,
             shortBreakDuration: 5 * 60,
@@ -167,7 +169,28 @@ const DOMElements = {
             good: document.querySelectorAll('.good-meme-non-indian'),
             bad: document.querySelectorAll('.bad-meme-non-indian'),
         }
-    }
+    },
+    // New elements for enhanced features
+    journal: {
+        section: document.getElementById("journal-section"),
+        entry: document.getElementById("journal-entry"),
+        charCount: document.getElementById("journal-char-count"),
+        saveStatus: document.getElementById("journal-save-status"),
+        imageUpload: document.getElementById("journal-image-upload"),
+        imagePreview: document.getElementById("journal-image-preview"),
+        entriesList: document.getElementById("journal-entries-list"),
+        currentDate: document.getElementById("journal-current-date"),
+        saveBtn: document.getElementById("save-journal-btn")
+    },
+    timetable: {
+        section: document.getElementById("timetable-section"),
+        slotsContainer: document.querySelector(".timetable-slots"),
+        days: document.querySelectorAll(".timetable-day"),
+        addSlotBtn: document.getElementById("add-timeslot-btn"),
+        clearBtn: document.getElementById("clear-timetable-btn")
+    },
+    macDock: document.getElementById("mac-dock"),
+    dockItems: document.querySelectorAll(".dock-item")
 };
 
 // ===================================================================================
@@ -367,7 +390,7 @@ async function loadFaceApiModels() {
 async function startVideo() {
     try {
         if (DOMElements.video.srcObject) return;
-        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+        const stream = await navig.mediaDevices.getUserMedia({ video: {} });
         DOMElements.video.srcObject = stream;
     } catch (err) {
         alert("Camera access is required for Accountability features. Please allow access and refresh.");
@@ -486,6 +509,11 @@ async function initializeAppState() {
     DOMElements.profile.nameDisplay.textContent = currentUserData.profileName || "Floww User";
     loadTheme();
     await loadFaceApiModels();
+    
+    // Initialize new features
+    initJournal();
+    initTimetable();
+    initMacDock();
 }
 
 function loadSettingsFromData() {
@@ -567,22 +595,432 @@ function showSessionReview() {
     DOMElements.modals.review.classList.add('visible');
 }
 
+// ===================================================================================
+// ENHANCED TODO LIST FUNCTIONALITY
+// ===================================================================================
 function loadTodos() {
     const todos = currentUserData.todos || [];
     const todoList = document.getElementById('todo-list');
     todoList.innerHTML = '';
+    
     todos.forEach((todo, index) => {
-        const li = document.createElement('li');
-        li.className = 'todo-item';
-        li.innerHTML = `<input type="checkbox" id="todo-${index}" ${todo.completed ? 'checked' : ''}> <label for="todo-${index}">${todo.text}</label>`;
-        li.querySelector('input').onchange = () => toggleTodo(index);
+        const li = createTodoElement(todo, index);
         todoList.appendChild(li);
     });
+    
+    // Make the list sortable
+    makeTodoListSortable();
 }
-function addTodo() { const input = document.getElementById('todo-input'); if (input.value.trim()) { if (!currentUserData.todos) currentUserData.todos = []; currentUserData.todos.push({ text: input.value.trim(), completed: false }); saveUserData(); input.value = ''; loadTodos(); } }
-function toggleTodo(index) { if (currentUserData.todos[index]) { currentUserData.todos[index].completed = !currentUserData.todos[index].completed; saveUserData(); loadTodos(); } }
-function clearTodos() { if (confirm("Clear all tasks?")) { currentUserData.todos = []; saveUserData(); loadTodos(); } }
 
+function createTodoElement(todo, index) {
+    const li = document.createElement('li');
+    li.className = 'todo-item';
+    li.draggable = true;
+    li.dataset.index = index;
+    
+    const deadlineText = todo.deadline ? new Date(todo.deadline).toLocaleDateString() : 'No deadline';
+    const estimatedTimeText = todo.estimatedTime ? `${todo.estimatedTime} min` : 'No time estimate';
+    
+    li.innerHTML = `
+        <div class="todo-drag-handle"><i class="fas fa-grip-vertical"></i></div>
+        <div class="todo-content">
+            <div class="todo-main-row">
+                <input type="checkbox" id="todo-${index}" ${todo.completed ? 'checked' : ''}>
+                <label for="todo-${index}" class="todo-title">${todo.text}</label>
+                <button class="todo-expand-btn"><i class="fas fa-chevron-down"></i></button>
+            </div>
+            <div class="todo-details">
+                <div class="todo-meta">
+                    <div class="todo-meta-item"><i class="far fa-calendar"></i> ${deadlineText}</div>
+                    <div class="todo-meta-item"><i class="far fa-clock"></i> ${estimatedTimeText}</div>
+                </div>
+                <div class="todo-subtasks">
+                    <div class="subtask-input">
+                        <input type="text" placeholder="Add a subtask..." class="subtask-text">
+                        <button class="add-subtask-btn"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <ul class="subtask-list">
+                        ${renderSubtasks(todo.subtasks || [])}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add event listeners
+    li.querySelector('input[type="checkbox"]').onchange = () => toggleTodo(index);
+    li.querySelector('.todo-expand-btn').onclick = () => {
+        const details = li.querySelector('.todo-details');
+        details.classList.toggle('expanded');
+        const icon = li.querySelector('.todo-expand-btn i');
+        icon.classList.toggle('fa-chevron-down');
+        icon.classList.toggle('fa-chevron-up');
+    };
+    
+    li.querySelector('.add-subtask-btn').onclick = () => {
+        const input = li.querySelector('.subtask-text');
+        if (input.value.trim()) {
+            if (!currentUserData.todos[index].subtasks) currentUserData.todos[index].subtasks = [];
+            currentUserData.todos[index].subtasks.push({
+                text: input.value.trim(),
+                completed: false
+            });
+            saveUserData();
+            input.value = '';
+            loadTodos();
+        }
+    };
+    
+    return li;
+}
+
+function renderSubtasks(subtasks) {
+    return subtasks.map((subtask, i) => `
+        <li class="subtask-item">
+            <input type="checkbox" ${subtask.completed ? 'checked' : ''}>
+            <label>${subtask.text}</label>
+        </li>
+    `).join('');
+}
+
+function addTodo() {
+    const input = document.getElementById('todo-input');
+    if (input.value.trim()) {
+        if (!currentUserData.todos) currentUserData.todos = [];
+        currentUserData.todos.push({
+            text: input.value.trim(),
+            completed: false,
+            subtasks: [],
+            deadline: null,
+            estimatedTime: null
+        });
+        saveUserData();
+        input.value = '';
+        loadTodos();
+    }
+}
+
+function toggleTodo(index) {
+    if (currentUserData.todos[index]) {
+        currentUserData.todos[index].completed = !currentUserData.todos[index].completed;
+        saveUserData();
+        loadTodos();
+    }
+}
+
+function clearTodos() {
+    if (confirm("Clear all tasks?")) {
+        currentUserData.todos = [];
+        saveUserData();
+        loadTodos();
+    }
+}
+
+function makeTodoListSortable() {
+    const todoList = document.getElementById('todo-list');
+    let draggedItem = null;
+    
+    // Add drag events to all items
+    const items = todoList.querySelectorAll('.todo-item');
+    items.forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+            draggedItem = item;
+            setTimeout(() => item.classList.add('dragging'), 0);
+        });
+        
+        item.addEventListener('dragend', () => {
+            draggedItem = null;
+            items.forEach(item => item.classList.remove('dragging'));
+        });
+        
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        
+        item.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            if (item !== draggedItem) {
+                const allItems = [...todoList.querySelectorAll('.todo-item:not(.dragging)')];
+                const currentPos = allItems.indexOf(draggedItem);
+                const newPos = allItems.indexOf(item);
+                
+                if (currentPos < newPos) {
+                    todoList.insertBefore(draggedItem, item.nextSibling);
+                } else {
+                    todoList.insertBefore(draggedItem, item);
+                }
+                
+                // Update the order in the data
+                const todos = currentUserData.todos;
+                const [movedItem] = todos.splice(currentPos, 1);
+                todos.splice(newPos, 0, movedItem);
+                saveUserData();
+            }
+        });
+    });
+}
+
+// ===================================================================================
+// JOURNAL FUNCTIONALITY
+// ===================================================================================
+function initJournal() {
+    // Set current date
+    const today = new Date();
+    DOMElements.journal.currentDate.textContent = today.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    // Load today's entry if it exists
+    const todayKey = today.toISOString().slice(0, 10);
+    if (currentUserData.journalEntries && currentUserData.journalEntries[todayKey]) {
+        const entry = currentUserData.journalEntries[todayKey];
+        DOMElements.journal.entry.value = entry.text;
+        updateCharCount();
+        
+        if (entry.image) {
+            const img = document.createElement('img');
+            img.src = entry.image;
+            DOMElements.journal.imagePreview.innerHTML = '';
+            DOMElements.journal.imagePreview.appendChild(img);
+            DOMElements.journal.imagePreview.classList.remove('hidden');
+        }
+    }
+    
+    // Load previous entries
+    loadPreviousJournalEntries();
+}
+
+function updateCharCount() {
+    const text = DOMElements.journal.entry.value;
+    const count = text.length;
+    DOMElements.journal.charCount.textContent = `${count}/1024`;
+    
+    if (count > 1000) {
+        DOMElements.journal.charCount.style.color = 'var(--danger-color)';
+    } else if (count > 800) {
+        DOMElements.journal.charCount.style.color = 'var(--primary-color)';
+    } else {
+        DOMElements.journal.charCount.style.color = 'var(--text-color)';
+    }
+}
+
+function saveJournalEntry() {
+    const text = DOMElements.journal.entry.value;
+    if (text.length > 1024) {
+        alert("Journal entry exceeds 1024 characters. Please shorten it.");
+        return;
+    }
+    
+    const today = new Date();
+    const todayKey = today.toISOString().slice(0, 10);
+    
+    if (!currentUserData.journalEntries) currentUserData.journalEntries = {};
+    
+    currentUserData.journalEntries[todayKey] = {
+        text: text,
+        date: todayKey,
+        image: DOMElements.journal.imagePreview.querySelector('img')?.src || null
+    };
+    
+    saveUserData();
+    
+    // Show save confirmation
+    DOMElements.journal.saveStatus.textContent = 'Saved!';
+    setTimeout(() => {
+        DOMElements.journal.saveStatus.textContent = '';
+    }, 2000);
+    
+    // Update previous entries list
+    loadPreviousJournalEntries();
+}
+
+function loadPreviousJournalEntries() {
+    const entriesContainer = DOMElements.journal.entriesList;
+    entriesContainer.innerHTML = '';
+    
+    if (!currentUserData.journalEntries || Object.keys(currentUserData.journalEntries).length === 0) {
+        entriesContainer.innerHTML = '<p>No previous entries yet.</p>';
+        return;
+    }
+    
+    // Sort entries by date (newest first)
+    const sortedEntries = Object.entries(currentUserData.journalEntries)
+        .sort(([a], [b]) => new Date(b) - new Date(a))
+        .slice(0, 5); // Show only the 5 most recent
+    
+    sortedEntries.forEach(([date, entry]) => {
+        const entryEl = document.createElement('div');
+        entryEl.className = 'journal-entry-item';
+        
+        const entryDate = new Date(date);
+        const formattedDate = entryDate.toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        let content = `
+            <div class="journal-entry-date">${formattedDate}</div>
+            <div class="journal-entry-content">${entry.text}</div>
+        `;
+        
+        if (entry.image) {
+            content += `<img src="${entry.image}" class="journal-entry-image" alt="Journal image">`;
+        }
+        
+        entryEl.innerHTML = content;
+        entriesContainer.appendChild(entryEl);
+    });
+}
+
+function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.match('image.*')) {
+        alert('Please select an image file.');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = document.createElement('img');
+        img.src = event.target.result;
+        DOMElements.journal.imagePreview.innerHTML = '';
+        DOMElements.journal.imagePreview.appendChild(img);
+        DOMElements.journal.imagePreview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+// ===================================================================================
+// TIMETABLE FUNCTIONALITY
+// ===================================================================================
+function initTimetable() {
+    // Generate time slots
+    generateTimeSlots();
+    
+    // Load saved timetable if exists
+    if (currentUserData.timetable) {
+        loadTimetableData();
+    }
+    
+    // Set up day selection
+    DOMElements.timetable.days.forEach(day => {
+        day.addEventListener('click', () => {
+            DOMElements.timetable.days.forEach(d => d.classList.remove('active'));
+            day.classList.add('active');
+            highlightDaySlots(day.dataset.day);
+        });
+    });
+    
+    // Activate Monday by default
+    DOMElements.timetable.days[0].classList.add('active');
+    highlightDaySlots('monday');
+}
+
+function generateTimeSlots() {
+    const slotsContainer = DOMElements.timetable.slotsContainer;
+    slotsContainer.innerHTML = '';
+    
+    // Create 7 columns (days) x 16 rows (hours)
+    for (let i = 0; i < 16; i++) {
+        for (let j = 0; j < 7; j++) {
+            const slot = document.createElement('div');
+            slot.className = 'timetable-slot';
+            slot.dataset.hour = i + 6; // 6 AM to 9 PM
+            slot.dataset.day = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][j];
+            slotsContainer.appendChild(slot);
+        }
+    }
+}
+
+function highlightDaySlots(day) {
+    const allSlots = document.querySelectorAll('.timetable-slot');
+    allSlots.forEach(slot => {
+        if (slot.dataset.day === day) {
+            slot.style.opacity = '1';
+        } else {
+            slot.style.opacity = '0.5';
+        }
+    });
+}
+
+function loadTimetableData() {
+    // Implementation for loading saved timetable data
+    // This would iterate through currentUserData.timetable and mark the appropriate slots
+}
+
+function addTimeSlot() {
+    // Implementation for adding a new time slot
+    // This would open a modal for the user to input activity details
+}
+
+function clearTimetable() {
+    if (confirm("Clear entire timetable? This cannot be undone.")) {
+        currentUserData.timetable = {};
+        saveUserData();
+        initTimetable();
+    }
+}
+
+// ===================================================================================
+// macOS DOCK FUNCTIONALITY
+// ===================================================================================
+function initMacDock() {
+    DOMElements.dockItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const section = item.dataset.section;
+            navigateToSection(section);
+            
+            // Add active class for visual feedback
+            DOMElements.dockItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+        });
+    });
+}
+
+function navigateToSection(section) {
+    // Hide all sections first
+    document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+    
+    // Show the selected section
+    switch(section) {
+        case 'timer':
+            document.getElementById('timer-section').classList.remove('hidden');
+            document.getElementById('features-section').classList.remove('hidden');
+            break;
+        case 'todo':
+            document.getElementById('timer-section').classList.remove('hidden');
+            document.getElementById('features-section').classList.remove('hidden');
+            // Scroll to todo section
+            document.getElementById('todo-container').scrollIntoView({ behavior: 'smooth' });
+            break;
+        case 'journal':
+            DOMElements.journal.section.classList.remove('hidden');
+            break;
+        case 'timetable':
+            DOMElements.timetable.section.classList.remove('hidden');
+            break;
+        case 'stats':
+            openStats();
+            break;
+        case 'settings':
+            openStats();
+            // Switch to settings tab
+            setTimeout(() => switchTab('settings'), 100);
+            break;
+    }
+}
+
+// ===================================================================================
+// UTILITY FUNCTIONS
+// ===================================================================================
 function updateCornerWidget() {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -734,6 +1172,17 @@ function attachMainAppEventListeners() {
     });
     document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
     document.getElementById('show-signup').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); DOMElements.authError.textContent = ''; });
+    
+    // New event listeners for enhanced features
+    DOMElements.journal.entry.addEventListener('input', updateCharCount);
+    DOMElements.journal.saveBtn.addEventListener('click', saveJournalEntry);
+    DOMElements.journal.imageUpload.addEventListener('change', handleImageUpload);
+    document.getElementById('upload-image-btn').addEventListener('click', () => {
+        DOMElements.journal.imageUpload.click();
+    });
+    DOMElements.timetable.addSlotBtn.addEventListener('click', addTimeSlot);
+    DOMElements.timetable.clearBtn.addEventListener('click', clearTimetable);
+    
     setInterval(updateCornerWidget, 30000);
 }
 
