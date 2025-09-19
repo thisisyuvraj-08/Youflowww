@@ -23,6 +23,7 @@
 <!-- YouTube Video Background - always at back -->
 <div id="video-background-container"></div>
 <video id="video" width="720" height="560" autoplay muted playsinline class="hidden"></video>
+<canvas id="pose-canvas" class="hidden"></canvas>
 <div id="face-detection-status" class="face-status-prompt hidden"></div>
 
 <!-- Firebase Auth Modal -->
@@ -385,7 +386,9 @@
         <span class="pip-title">YouTube Player</span>
         <button id="pip-close-btn">&times;</button>
     </div>
-    <div id="pip-player-content"></div>
+    <div id="pip-player-content">
+        <div id="player"></div>
+    </div>
     <div class="pip-input-container">
         <input type="text" id="pip-youtube-input" placeholder="Paste new YouTube URL here...">
         <button id="pip-set-btn">Set</button>
@@ -453,12 +456,16 @@
 <audio class="start-sound-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/start.mp3"></audio>
 <audio class="good-meme-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/good.mp3"></audio>
 <audio class="bad-meme-non-indian" src="https://github.com/ishaanx/pomodoro-accountability-sounds/raw/main/bad.mp3"></audio>
+
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js" type="module"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js" type="module"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
 <script src="script.js" type="module"></script>
 <a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
