@@ -144,7 +144,7 @@ h3 { margin-bottom: 1rem; color: var(--primary-color); }
 
 /* Enhanced Todo List Styles */
 .sortable-list { min-height: 50px; }
-.todo-item { background: var(--card-dark); border-radius: 8px; margin-bottom: 8px; padding: 12px; border: 1px solid var(--border-color); position: relative; }
+.todo-item { background: var(--card-dark); border-radius: 8px; margin-bottom: 8px; padding: 12px; border: 1px solid #444; position: relative; }
 .todo-item.dragging { opacity: 0.6; background-color: rgba(247, 160, 71, 0.2); }
 .todo-drag-handle { cursor: move; padding: 0 10px; color: var(--text-muted); }
 .todo-content { flex-grow: 1; }
@@ -280,14 +280,17 @@ button:disabled { background-color: var(--disabled-color) !important; color: var
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background-color: var(--danger-color);
+    background: linear-gradient(145deg, var(--danger-color), #d32f2f);
     color: white;
-    padding: 10px 20px;
+    padding: 12px 24px;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
     z-index: 2000;
     opacity: 0;
     transition: opacity 0.3s ease;
+    font-weight: 500;
+    text-align: center;
+    min-width: 300px;
 }
 .face-status-prompt.visible {
     opacity: 1;
@@ -432,19 +435,125 @@ body.focus-mode #focusModeUI { display: flex; }
     font-size: 1.1rem;
 }
 
+/* --- Pose Detection Canvas --- */
+#pose-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -3;
+    pointer-events: none;
+}
+
 /* --- Floating Picture-in-Picture Player --- */
-#pip-player-container { position: fixed; bottom: 20px; right: 20px; width: 380px; height: 350px; min-width: 300px; min-height: 250px; max-width: 70vw; max-height: 70vh; background-color: var(--card-dark); border: 1px solid var(--border-color); border-radius: var(--border-radius); box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 1001; display: flex; flex-direction: column; overflow: hidden; resize: both; animation: fadeIn 0.3s ease-out; }
-#pip-player-header { width: 100%; background-color: #2a2a2a; padding: 8px 12px; cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none; }
-.pip-title { font-weight: bold; color: var(--text-muted); }
-#pip-close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 0 5px; }
-#pip-close-btn:hover { color: var(--text-color); }
-#pip-player-content { flex-grow: 1; background-color: #000; }
-#pip-player-content iframe { width: 100%; height: 100%; border: none; }
-.pip-input-container { display: flex; padding: 10px; gap: 8px; background-color: #2a2a2a; }
-#pip-youtube-input { flex-grow: 1; padding: 8px; background-color: var(--background-dark); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 8px; font-size: 0.9rem; }
-#pip-set-btn { padding: 8px 15px; font-size: 0.9rem; background-color: var(--secondary-color); }
-#pip-player-container::-webkit-resizer { display: none; }
-#pip-resize-handle { position: absolute; bottom: 0; right: 0; width: 15px; height: 15px; cursor: nwse-resize; background: repeating-linear-gradient( -45deg, transparent, transparent 3px, var(--border-color) 3px, var(--border-color) 6px ); opacity: 0.5; }
+#pip-player-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 380px;
+    height: 350px;
+    min-width: 300px;
+    min-height: 250px;
+    max-width: 70vw;
+    max-height: 70vh;
+    background-color: var(--card-dark);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    resize: both;
+    animation: fadeIn 0.3s ease-out;
+}
+
+#pip-player-header {
+    width: 100%;
+    background-color: #2a2a2a;
+    padding: 8px 12px;
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+
+.pip-title {
+    font-weight: bold;
+    color: var(--text-muted);
+}
+
+#pip-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 5px;
+}
+
+#pip-close-btn:hover {
+    color: var(--text-color);
+}
+
+#pip-player-content {
+    flex-grow: 1;
+    background-color: #000;
+    position: relative;
+}
+
+#player {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.pip-input-container {
+    display: flex;
+    padding: 10px;
+    gap: 8px;
+    background-color: #2a2a2a;
+}
+
+#pip-youtube-input {
+    flex-grow: 1;
+    padding: 8px;
+    background-color: var(--background-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+#pip-set-btn {
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    background-color: var(--secondary-color);
+}
+
+#pip-player-container::-webkit-resizer {
+    display: none;
+}
+
+#pip-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 15px;
+    height: 15px;
+    cursor: nwse-resize;
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 3px,
+        var(--border-color) 3px,
+        var(--border-color) 6px
+    );
+    opacity: 0.5;
+}
 
 /* --- macOS Dock Navigation --- */
 #mac-dock {
@@ -530,6 +639,72 @@ body.focus-mode #focusModeUI { display: flex; }
     color: white;
 }
 
+/* Accountability status indicator */
+#accountability-status {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    z-index: 1000;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+#accountability-status.active {
+    background-color: var(--success-color);
+    animation: pulse 2s infinite;
+}
+
+#accountability-status.inactive {
+    background-color: var(--danger-color);
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* --- Assistant Walk-in Animation --- */
+.animated-walk-in {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: -90px auto 10px;
+    animation: walk-in 1.2s cubic-bezier(0.65,0.05,0.36,1) forwards;
+}
+@keyframes walk-in {
+    0% { transform: translateX(-160px) scale(0.85); opacity: 0; }
+    70% { transform: translateX(10px) scale(1.03); opacity: 1; }
+    90% { transform: translateX(0px) scale(1); }
+    100% { transform: translateX(0px) scale(1); opacity: 1; }
+}
+.animated-walk-in svg #pointing-arm {
+    transform-origin: 70px 89px;
+    animation: arm-point 2s 1.2s infinite alternate;
+}
+@keyframes arm-point {
+    0% { transform: rotate(-15deg); }
+    100% { transform: rotate(10deg); }
+}
+.animated-walk-in svg #leg {
+    animation: leg-bounce 1.2s 0.3s 1;
+}
+@keyframes leg-bounce {
+    0% { transform: translateY(0); }
+    60% { transform: translateY(-8px); }
+    100% { transform: translateY(0); }
+}
+.animated-walk-in svg #eye-left,
+.animated-walk-in svg #eye-right {
+    animation: blink 5s infinite;
+}
+@keyframes blink {
+    0%, 92%, 100% { ry: 4; }
+    93%, 97% { ry: 0.8; }
+}
+
 /* --- Responsive Design --- */
 @media (max-width: 768px) {
     body { padding: 10px; padding-bottom: 70px; }
@@ -577,43 +752,4 @@ body.focus-mode #focusModeUI { display: flex; }
     .dock-container .dock-item:hover .dock-icon {
         transform: scale(1.3) translateY(-5px);
     }
-}
-
-/* --- Assistant Walk-in Animation --- */
-.animated-walk-in {
-    position: relative;
-    width: 120px;
-    height: 120px;
-    margin: -90px auto 10px;
-    animation: walk-in 1.2s cubic-bezier(0.65,0.05,0.36,1) forwards;
-}
-@keyframes walk-in {
-    0% { transform: translateX(-160px) scale(0.85); opacity: 0; }
-    70% { transform: translateX(10px) scale(1.03); opacity: 1; }
-    90% { transform: translateX(0px) scale(1); }
-    100% { transform: translateX(0px) scale(1); opacity: 1; }
-}
-.animated-walk-in svg #pointing-arm {
-    transform-origin: 70px 89px;
-    animation: arm-point 2s 1.2s infinite alternate;
-}
-@keyframes arm-point {
-    0% { transform: rotate(-15deg); }
-    100% { transform: rotate(10deg); }
-}
-.animated-walk-in svg #leg {
-    animation: leg-bounce 1.2s 0.3s 1;
-}
-@keyframes leg-bounce {
-    0% { transform: translateY(0); }
-    60% { transform: translateY(-8px); }
-    100% { transform: translateY(0); }
-}
-.animated-walk-in svg #eye-left,
-.animated-walk-in svg #eye-right {
-    animation: blink 5s infinite;
-}
-@keyframes blink {
-    0%, 92%, 100% { ry: 4; }
-    93%, 97% { ry: 0.8; }
 }
