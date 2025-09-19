@@ -60,7 +60,6 @@ function getDefaultUserData() {
             longBreakDuration: 15 * 60,
             soundProfile: "indian",
             isAccountabilityOn: false,
-            isSleepDetectionOn: false,
         },
         theme: { backgroundPath: null, youtubeVideoId: null }
     };
@@ -107,10 +106,7 @@ let faceApiInterval = null;
 window.faceApiInterval = faceApiInterval; // Make interval global for debugging
 let isAccountabilityOn = false;
 window.isAccountabilityOn = isAccountabilityOn; // Debug global
-let isSleepDetectionOn = false;
-window.isSleepDetectionOn = isSleepDetectionOn; // Debug global
 let awayTimerStart = null;
-let eyesClosedTimerStart = null;
 let modelsLoaded = false; // Flag to check if face-api models are loaded
 
 // ===================================================================================
@@ -153,7 +149,6 @@ const DOMElements = {
     settings: {
         soundEffects: document.getElementById('sound-effects-select'),
         accountabilityToggle: document.getElementById('accountability-toggle'),
-        sleepDetectionToggle: document.getElementById('sleep-detection-toggle'),
     },
     sounds: {
         whiteNoise: document.getElementById("whiteNoise"),
@@ -285,7 +280,7 @@ function startTimer(isResume = false) {
     }
     endTime = Date.now() + timeLeft * 1000;
     updateUIState();
-    if (isAccountabilityOn || isSleepDetectionOn) {
+    if (isAccountabilityOn) {
         startFaceDetection();
     }
     timerInterval = setInterval(() => {
@@ -301,7 +296,7 @@ function startTimer(isResume = false) {
         }
     }, 1000);
 
-    if ((isAccountabilityOn || isSleepDetectionOn) && !DOMElements.video.srcObject) {
+    if (isAccountabilityOn && !DOMElements.video.srcObject) {
         startVideo();
     }
 }
@@ -346,7 +341,7 @@ function handleSessionCompletion() {
     const minutesFocused = Math.floor(workDuration / 60);
     handleEndOfWorkSession(minutesFocused, true);
     showCompletionPopup();
-    if (isAccountabilityOn || isSleepDetectionOn) showSessionReview();
+    if (isAccountabilityOn) showSessionReview();
     sessionCount++;
     isWorkSession = false;
     timeLeft = (sessionCount % 4 === 0) ? longBreakDuration : shortBreakDuration;
@@ -363,6 +358,10 @@ function handleEndOfWorkSession(minutesFocused, sessionCompleted) {
     if (minutesFocused > 0) {
         currentUserData.totalFocusMinutes = (currentUserData.totalFocusMinutes || 0) + minutesFocused;
         currentUserData.totalSessions = (currentUserData.totalSessions || 0) + 1;
+        
+        // Update streak
+        updateStreak();
+        
         const today = new Date().toISOString().slice(0, 10);
         if (!currentUserData.weeklyFocus) currentUserData.weeklyFocus = {};
         currentUserData.weeklyFocus[today] = (currentUserData.weeklyFocus[today] || 0) + minutesFocused;
@@ -370,6 +369,37 @@ function handleEndOfWorkSession(minutesFocused, sessionCompleted) {
     if (minutesFocused >= 20) playRandomSound('good');
     else if (minutesFocused > 0) playRandomSound('bad');
     saveUserData();
+}
+
+// Update streak logic
+function updateStreak() {
+    const today = new Date().toISOString().slice(0, 10);
+    const lastStreakDate = currentUserData.lastStreakDate;
+    
+    // If no last streak date or last streak was yesterday, increment streak
+    if (!lastStreakDate) {
+        currentUserData.streakCount = 1;
+        currentUserData.lastStreakDate = today;
+    } else {
+        const lastDate = new Date(lastStreakDate);
+        const currentDate = new Date(today);
+        const diffTime = Math.abs(currentDate - lastDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+            // Consecutive day
+            currentUserData.streakCount = (currentUserData.streakCount || 0) + 1;
+            currentUserData.lastStreakDate = today;
+        } else if (diffDays > 1) {
+            // Broken streak, reset to 1
+            currentUserData.streakCount = 1;
+            currentUserData.lastStreakDate = today;
+        }
+        // If same day, do nothing (already completed a session today)
+    }
+    
+    // Update streak display
+    DOMElements.streak.count.textContent = currentUserData.streakCount || 0;
 }
 
 // ===================================================================================
@@ -390,16 +420,13 @@ async function loadFaceApiModels() {
 async function startVideo() {
     try {
         if (DOMElements.video.srcObject) return;
-        const stream = await navig.mediaDevices.getUserMedia({ video: {} });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
         DOMElements.video.srcObject = stream;
     } catch (err) {
         alert("Camera access is required for Accountability features. Please allow access and refresh.");
         DOMElements.settings.accountabilityToggle.checked = false;
-        DOMElements.settings.sleepDetectionToggle.checked = false;
         isAccountabilityOn = false;
-        isSleepDetectionOn = false;
         window.isAccountabilityOn = isAccountabilityOn;
-        window.isSleepDetectionOn = isSleepDetectionOn;
         saveSettingsToData();
     }
 }
@@ -412,7 +439,7 @@ function stopVideo() {
 }
 
 function startFaceDetection() {
-    if (!faceApiInterval && (isAccountabilityOn || isSleepDetectionOn)) {
+    if (!faceApiInterval && isAccountabilityOn) {
         faceApiInterval = setInterval(handleFaceDetection, 500);
         window.faceApiInterval = faceApiInterval;
     }
@@ -424,21 +451,6 @@ function stopFaceDetection() {
     window.faceApiInterval = faceApiInterval;
     hideFaceStatusPrompt();
     awayTimerStart = null;
-    eyesClosedTimerStart = null;
-}
-
-const EYE_AR_THRESH = 0.22;
-
-function getEyeAspectRatio(landmarks) {
-    const leftEye = landmarks.getLeftEye();
-    const rightEye = landmarks.getRightEye();
-    const eyeAR = (eye) => {
-        const A = faceapi.euclideanDistance([eye[1].x, eye[1].y], [eye[5].x, eye[5].y]);
-        const B = faceapi.euclideanDistance([eye[2].x, eye[2].y], [eye[4].x, eye[4].y]);
-        const C = faceapi.euclideanDistance([eye[0].x, eye[0].y], [eye[3].x, eye[3].y]);
-        return (A + B) / (2.0 * C);
-    };
-    return (eyeAR(leftEye) + eyeAR(rightEye)) / 2.0;
 }
 
 async function handleFaceDetection() {
@@ -452,7 +464,7 @@ async function handleFaceDetection() {
             if (!awayTimerStart) {
                 awayTimerStart = Date.now();
                 showFaceStatusPrompt("Are you there? Timer will pause soon...");
-            } else if (Date.now() - awayTimerStart > 15000) {
+            } else if (Date.now() - awayTimerStart > 30000) { // 30 seconds
                 pauseTimer(true);
                 showFaceStatusPrompt("Timer paused. Come back to resume.");
             }
@@ -463,28 +475,6 @@ async function handleFaceDetection() {
                 if (!isRunning && !pauseWasManual) startTimer(true);
             }
         }
-    }
-    
-    if (isSleepDetectionOn && faceDetected) {
-        const ear = getEyeAspectRatio(detections[0].landmarks);
-        if (ear < EYE_AR_THRESH) {
-            if (!eyesClosedTimerStart) {
-                eyesClosedTimerStart = Date.now();
-                showFaceStatusPrompt("Feeling sleepy? Timer will pause.");
-            } else if (Date.now() - eyesClosedTimerStart > 10000) {
-                pauseTimer(true);
-                showFaceStatusPrompt("Timer paused due to inactivity.");
-                playRandomSound('bad');
-            }
-        } else {
-            if (eyesClosedTimerStart) {
-                eyesClosedTimerStart = null;
-                hideFaceStatusPrompt();
-                if (!isRunning && !pauseWasManual) startTimer(true);
-            }
-        }
-    } else if (isSleepDetectionOn && !faceDetected) {
-        showFaceStatusPrompt("Face not visible");
     }
 }
 
@@ -514,6 +504,9 @@ async function initializeAppState() {
     initJournal();
     initTimetable();
     initMacDock();
+    
+    // Update streak display
+    DOMElements.streak.count.textContent = currentUserData.streakCount || 0;
 }
 
 function loadSettingsFromData() {
@@ -532,12 +525,9 @@ function loadSettingsFromData() {
     document.getElementById('long-break-duration').value = longBreakDuration / 60;
     DOMElements.settings.soundEffects.value = settings.soundProfile || 'indian';
     DOMElements.settings.accountabilityToggle.checked = settings.isAccountabilityOn || false;
-    DOMElements.settings.sleepDetectionToggle.checked = settings.isSleepDetectionOn || false;
 
     isAccountabilityOn = settings.isAccountabilityOn || false;
-    isSleepDetectionOn = settings.isSleepDetectionOn || false;
     window.isAccountabilityOn = isAccountabilityOn;
-    window.isSleepDetectionOn = isSleepDetectionOn;
 }
 
 function saveSettingsToData() {
@@ -552,12 +542,9 @@ function saveSettingsToData() {
         currentUserData.settings.longBreakDuration = newLong;
         currentUserData.settings.soundProfile = DOMElements.settings.soundEffects.value;
         currentUserData.settings.isAccountabilityOn = DOMElements.settings.accountabilityToggle.checked;
-        currentUserData.settings.isSleepDetectionOn = DOMElements.settings.sleepDetectionToggle.checked;
 
         isAccountabilityOn = DOMElements.settings.accountabilityToggle.checked;
-        isSleepDetectionOn = DOMElements.settings.sleepDetectionToggle.checked;
         window.isAccountabilityOn = isAccountabilityOn;
-        window.isSleepDetectionOn = isSleepDetectionOn;
 
         saveUserData();
         loadSettingsFromData();
@@ -934,6 +921,12 @@ function generateTimeSlots() {
             slot.className = 'timetable-slot';
             slot.dataset.hour = i + 6; // 6 AM to 9 PM
             slot.dataset.day = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][j];
+            
+            // Add event listener for editing
+            slot.addEventListener('click', () => {
+                editTimeSlot(slot);
+            });
+            
             slotsContainer.appendChild(slot);
         }
     }
@@ -951,20 +944,88 @@ function highlightDaySlots(day) {
 }
 
 function loadTimetableData() {
-    // Implementation for loading saved timetable data
-    // This would iterate through currentUserData.timetable and mark the appropriate slots
+    const timetable = currentUserData.timetable || {};
+    const allSlots = document.querySelectorAll('.timetable-slot');
+    
+    allSlots.forEach(slot => {
+        const day = slot.dataset.day;
+        const hour = slot.dataset.hour;
+        const key = `${day}-${hour}`;
+        
+        if (timetable[key]) {
+            slot.textContent = timetable[key].text;
+            if (timetable[key].completed) {
+                slot.classList.add('completed');
+            } else {
+                slot.classList.remove('completed');
+            }
+        } else {
+            slot.textContent = '';
+            slot.classList.remove('completed');
+        }
+    });
+}
+
+function editTimeSlot(slot) {
+    const day = slot.dataset.day;
+    const hour = slot.dataset.hour;
+    const key = `${day}-${hour}`;
+    
+    const currentText = currentUserData.timetable && currentUserData.timetable[key] ? currentUserData.timetable[key].text : '';
+    const isCompleted = currentUserData.timetable && currentUserData.timetable[key] ? currentUserData.timetable[key].completed : false;
+    
+    const newText = prompt(`Enter activity for ${day} at ${hour}:00`, currentText);
+    
+    if (newText !== null) {
+        if (!currentUserData.timetable) currentUserData.timetable = {};
+        
+        if (newText.trim() === '') {
+            // Remove the slot if text is empty
+            delete currentUserData.timetable[key];
+        } else {
+            // Update the slot
+            currentUserData.timetable[key] = {
+                text: newText.trim(),
+                completed: isCompleted
+            };
+        }
+        
+        saveUserData();
+        loadTimetableData();
+    }
 }
 
 function addTimeSlot() {
-    // Implementation for adding a new time slot
-    // This would open a modal for the user to input activity details
+    const activeDay = document.querySelector('.timetable-day.active');
+    if (!activeDay) return;
+    
+    const day = activeDay.dataset.day;
+    const hour = prompt(`Enter the hour for ${day} (6-21):`);
+    
+    if (hour && hour >= 6 && hour <= 21) {
+        const key = `${day}-${hour}`;
+        const activity = prompt(`Enter activity for ${day} at ${hour}:00:`);
+        
+        if (activity !== null) {
+            if (!currentUserData.timetable) currentUserData.timetable = {};
+            currentUserData.timetable[key] = {
+                text: activity.trim(),
+                completed: false
+            };
+            
+            saveUserData();
+            loadTimetableData();
+        }
+    } else if (hour) {
+        alert('Please enter a valid hour between 6 and 21.');
+    }
 }
 
 function clearTimetable() {
     if (confirm("Clear entire timetable? This cannot be undone.")) {
         currentUserData.timetable = {};
         saveUserData();
-        initTimetable();
+        loadTimetableData();
     }
 }
 
@@ -1040,7 +1101,15 @@ function updateCornerWidget() {
     document.getElementById("yearProgressPercent").textContent = `${Math.floor(yearProgress)}%`;
 }
 
-function toggleFocusMode() { document.body.classList.toggle('focus-mode'); }
+function toggleFocusMode() { 
+    document.body.classList.toggle('focus-mode'); 
+    // Hide dock in focus mode
+    if (document.body.classList.contains('focus-mode')) {
+        DOMElements.macDock.style.display = 'none';
+    } else {
+        DOMElements.macDock.style.display = 'block';
+    }
+}
 
 function ambientLoop(timestamp) {
     if (isSnowActive && timestamp - lastSnowSpawn > SNOW_INTERVAL) { lastSnowSpawn = timestamp; createAndAnimateElement('snowflake', 8, 15, 'fall'); }
@@ -1071,6 +1140,34 @@ function setYoutubeBackground(videoId) { document.getElementById("video-backgrou
 function applyBackgroundTheme(path) { document.body.style.backgroundImage = `url('${path}')`; document.getElementById("video-background-container").innerHTML = ''; }
 function loadTheme() { if (currentUserData.theme?.backgroundPath) applyBackgroundTheme(currentUserData.theme.backgroundPath); if (currentUserData.theme?.youtubeVideoId) setYoutubeBackground(currentUserData.theme.youtubeVideoId); }
 
+// Handle image upload for background
+function handleImageBackgroundUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.match('image.*')) {
+        alert('Please select an image file.');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        currentUserData.theme = { backgroundPath: event.target.result, youtubeVideoId: null };
+        saveUserData();
+        applyBackgroundTheme(event.target.result);
+        alert('Background image set successfully!');
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearImageBackground() {
+    currentUserData.theme = { backgroundPath: null, youtubeVideoId: null };
+    saveUserData();
+    document.body.style.backgroundImage = 'none';
+    document.getElementById("video-background-container").innerHTML = '';
+    alert('Background image cleared!');
+}
+
 // ===================================================================================
 // EVENT LISTENERS
 // ===================================================================================
@@ -1099,11 +1196,11 @@ function attachMainAppEventListeners() {
         isAccountabilityOn = e.target.checked; 
         window.isAccountabilityOn = isAccountabilityOn;
         saveSettingsToData();
-    });
-    DOMElements.settings.sleepDetectionToggle.addEventListener('change', (e) => { 
-        isSleepDetectionOn = e.target.checked; 
-        window.isSleepDetectionOn = isSleepDetectionOn;
-        saveSettingsToData();
+        
+        // Show info about accountability feature
+        if (isAccountabilityOn) {
+            alert("Accountability feature enabled. Note: This feature only works when you're using the current tab.");
+        }
     });
     document.getElementById('storeItems').addEventListener('click', (e) => { 
         if (e.target.tagName !== 'BUTTON') return;
@@ -1120,6 +1217,11 @@ function attachMainAppEventListeners() {
         if (videoId) { currentUserData.theme = { youtubeVideoId: videoId, backgroundPath: null }; setYoutubeBackground(videoId); saveUserData(); } 
         else if (url) { alert("Please enter a valid YouTube URL."); }
     });
+    document.getElementById("uploadImageBtn").addEventListener('click', () => {
+        document.getElementById("image-upload-input").click();
+    });
+    document.getElementById("image-upload-input").addEventListener('change', handleImageBackgroundUpload);
+    document.getElementById("clearImageBtn").addEventListener('click', clearImageBackground);
     document.getElementById("clearDataBtn").addEventListener('click', async () => { if (confirm("DANGER: This will reset ALL your stats and settings permanently.")) { 
         const soundProfile = currentUserData.settings.soundProfile;
         currentUserData = getDefaultUserData();
