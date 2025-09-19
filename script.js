@@ -108,12 +108,20 @@ let isAccountabilityOn = false;
 window.isAccountabilityOn = isAccountabilityOn; // Debug global
 let awayTimerStart = null;
 let modelsLoaded = false; // Flag to check if face-api models are loaded
+let poseDetector = null;
+let poseDetectionInterval = null;
+
+// YOUTUBE PLAYER STATE
+let youtubePlayer = null;
+let isPipDragging = false;
+let pipDragOffset = { x: 0, y: 0 };
 
 // ===================================================================================
 // DOM ELEMENTS CACHE
 // ===================================================================================
 const DOMElements = {
     video: document.getElementById("video"),
+    poseCanvas: document.getElementById("pose-canvas"),
     timerDisplay: document.getElementById("timer"),
     statusDisplay: document.getElementById("status"),
     playPauseBtn: document.getElementById("playPauseBtn"),
@@ -185,7 +193,16 @@ const DOMElements = {
         clearBtn: document.getElementById("clear-timetable-btn")
     },
     macDock: document.getElementById("mac-dock"),
-    dockItems: document.querySelectorAll(".dock-item")
+    dockItems: document.querySelectorAll(".dock-item"),
+    pipPlayer: {
+        container: document.getElementById("pip-player-container"),
+        header: document.getElementById("pip-player-header"),
+        content: document.getElementById("pip-player-content"),
+        closeBtn: document.getElementById("pip-close-btn"),
+        youtubeInput: document.getElementById("pip-youtube-input"),
+        setBtn: document.getElementById("pip-set-btn"),
+        resizeHandle: document.getElementById("pip-resize-handle")
+    }
 };
 
 // ===================================================================================
@@ -282,6 +299,7 @@ function startTimer(isResume = false) {
     updateUIState();
     if (isAccountabilityOn) {
         startFaceDetection();
+        startPoseDetection();
     }
     timerInterval = setInterval(() => {
         timeLeft = Math.round((endTime - Date.now()) / 1000);
@@ -309,6 +327,7 @@ function pauseTimer(isAuto = false) {
         pauseWasManual = true;
         DOMElements.sounds.pauseAlert.play();
         stopFaceDetection();
+        stopPoseDetection();
     } else {
         pauseWasManual = false;
     }
@@ -319,6 +338,7 @@ function pauseTimer(isAuto = false) {
 function resetTimer() {
     clearInterval(timerInterval);
     stopFaceDetection();
+    stopPoseDetection();
     isRunning = false;
     isWorkSession = true;
     sessionCount = 0;
@@ -354,6 +374,7 @@ function handleSessionCompletion() {
 
 function handleEndOfWorkSession(minutesFocused, sessionCompleted) {
     stopFaceDetection();
+    stopPoseDetection();
     stopVideo();
     if (minutesFocused > 0) {
         currentUserData.totalFocusMinutes = (currentUserData.totalFocusMinutes || 0) + minutesFocused;
@@ -403,7 +424,7 @@ function updateStreak() {
 }
 
 // ===================================================================================
-// ACCOUNTABILITY AI (FACE-API.JS)
+// ACCOUNTABILITY AI (FACE-API.JS & POSE DETECTION)
 // ===================================================================================
 async function loadFaceApiModels() {
     if (modelsLoaded) return;
@@ -413,16 +434,39 @@ async function loadFaceApiModels() {
         await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
         modelsLoaded = true;
     } catch (error) {
-        alert("Could not load accountability models. Please check your connection and refresh.");
+        console.error("Could not load face-api models:", error);
+    }
+}
+
+async function setupPoseDetection() {
+    try {
+        const detectorConfig = {
+            modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+            enableSmoothing: true
+        };
+        poseDetector = await poseDetection.createDetector(
+            poseDetection.SupportedModels.MoveNet,
+            detectorConfig
+        );
+    } catch (error) {
+        console.error("Could not load pose detection model:", error);
     }
 }
 
 async function startVideo() {
     try {
         if (DOMElements.video.srcObject) return;
-        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            } 
+        });
         DOMElements.video.srcObject = stream;
+        DOMElements.poseCanvas.width = DOMElements.video.videoWidth;
+        DOMElements.poseCanvas.height = DOMElements.video.videoHeight;
     } catch (err) {
+        console.error("Camera access error:", err);
         alert("Camera access is required for Accountability features. Please allow access and refresh.");
         DOMElements.settings.accountabilityToggle.checked = false;
         isAccountabilityOn = false;
@@ -440,7 +484,7 @@ function stopVideo() {
 
 function startFaceDetection() {
     if (!faceApiInterval && isAccountabilityOn) {
-        faceApiInterval = setInterval(handleFaceDetection, 500);
+        faceApiInterval = setInterval(handleFaceDetection, 1000);
         window.faceApiInterval = faceApiInterval;
     }
 }
@@ -453,14 +497,52 @@ function stopFaceDetection() {
     awayTimerStart = null;
 }
 
+function startPoseDetection() {
+    if (!poseDetectionInterval && isAccountabilityOn && poseDetector) {
+        poseDetectionInterval = setInterval(handlePoseDetection, 1000);
+    }
+}
+
+function stopPoseDetection() {
+    clearInterval(poseDetectionInterval);
+    poseDetectionInterval = null;
+}
+
 async function handleFaceDetection() {
     if (!modelsLoaded || !isRunning || DOMElements.video.paused || DOMElements.video.ended || !DOMElements.video.srcObject) return;
-    const detections = await faceapi.detectAllFaces(DOMElements.video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 })).withFaceLandmarks(true);
+    
+    try {
+        const detections = await faceapi.detectAllFaces(
+            DOMElements.video, 
+            new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 })
+        ).withFaceLandmarks(true);
 
-    const faceDetected = detections.length > 0;
+        const faceDetected = detections.length > 0;
+        handlePresenceDetection(faceDetected);
+    } catch (error) {
+        console.error("Face detection error:", error);
+    }
+}
 
+async function handlePoseDetection() {
+    if (!poseDetector || !isRunning || DOMElements.video.paused || DOMElements.video.ended || !DOMElements.video.srcObject) return;
+    
+    try {
+        const poses = await poseDetector.estimatePoses(DOMElements.video);
+        const personDetected = poses.length > 0 && poses[0].keypoints.some(kp => kp.score > 0.4);
+        
+        // If pose detection finds a person, use that instead of face detection
+        if (personDetected) {
+            handlePresenceDetection(true);
+        }
+    } catch (error) {
+        console.error("Pose detection error:", error);
+    }
+}
+
+function handlePresenceDetection(presenceDetected) {
     if (isAccountabilityOn) {
-        if (!faceDetected) {
+        if (!presenceDetected) {
             if (!awayTimerStart) {
                 awayTimerStart = Date.now();
                 showFaceStatusPrompt("Are you there? Timer will pause soon...");
@@ -488,6 +570,151 @@ function hideFaceStatusPrompt() {
 }
 
 // ===================================================================================
+// YOUTUBE PIP PLAYER FUNCTIONALITY
+// ===================================================================================
+function initYoutubePlayer() {
+    // Default playlists based on user location
+    const defaultPlaylist = currentUserData.settings?.soundProfile === 'indian' 
+        ? 'UBBHpoW3AKA' 
+        : 'PLBgJjIxp0WaVX6LSodfsQ9pBfHWObvkfX';
+    
+    // Load YouTube IFrame API
+    if (typeof YT !== 'undefined' && YT.Player) {
+        createYoutubePlayer(defaultPlaylist);
+    } else {
+        // Wait for YouTube API to load
+        window.onYouTubeIframeAPIReady = function() {
+            createYoutubePlayer(defaultPlaylist);
+        };
+    }
+    
+    // Set up PiP player event listeners
+    setupPipPlayer();
+}
+
+function createYoutubePlayer(playlistId) {
+    youtubePlayer = new YT.Player('player', {
+        height: '100%',
+        width: '100%',
+        playerVars: {
+            'listType': 'playlist',
+            'list': playlistId,
+            'autoplay': 0,
+            'controls': 1,
+            'rel': 0,
+            'modestbranding': 1,
+            'playsinline': 1
+        },
+        events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+        }
+    });
+}
+
+function onPlayerReady(event) {
+    console.log("YouTube player ready");
+}
+
+function onPlayerStateChange(event) {
+    // Handle player state changes if needed
+}
+
+function setupPipPlayer() {
+    // Toggle PiP player visibility
+    document.getElementById('pipYoutubeBtn').addEventListener('click', () => {
+        DOMElements.pipPlayer.container.classList.toggle('hidden');
+        if (!DOMElements.pipPlayer.container.classList.contains('hidden') && youtubePlayer) {
+            youtubePlayer.playVideo();
+        } else if (youtubePlayer) {
+            youtubePlayer.pauseVideo();
+        }
+    });
+    
+    // Close PiP player
+    DOMElements.pipPlayer.closeBtn.addEventListener('click', () => {
+        DOMElements.pipPlayer.container.classList.add('hidden');
+        if (youtubePlayer) {
+            youtubePlayer.pauseVideo();
+        }
+    });
+    
+    // Set new YouTube URL
+    DOMElements.pipPlayer.setBtn.addEventListener('click', () => {
+        const url = DOMElements.pipPlayer.youtubeInput.value;
+        const videoId = getYoutubeVideoId(url);
+        if (videoId && youtubePlayer) {
+            youtubePlayer.loadVideoById(videoId);
+            DOMElements.pipPlayer.youtubeInput.value = '';
+        } else if (url) {
+            alert("Please enter a valid YouTube URL.");
+        }
+    });
+    
+    // Make PiP player draggable
+    DOMElements.pipPlayer.header.addEventListener('mousedown', startDrag);
+    document.addEventListener('mouseup', stopDrag);
+    document.addEventListener('mousemove', drag);
+    
+    // Make PiP player resizable
+    DOMElements.pipPlayer.resizeHandle.addEventListener('mousedown', startResize);
+    document.addEventListener('mouseup', stopResize);
+    document.addEventListener('mousemove', resize);
+}
+
+function startDrag(e) {
+    isPipDragging = true;
+    const rect = DOMElements.pipPlayer.container.getBoundingClientRect();
+    pipDragOffset = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    };
+    e.preventDefault();
+}
+
+function stopDrag() {
+    isPipDragging = false;
+}
+
+function drag(e) {
+    if (!isPipDragging) return;
+    
+    DOMElements.pipPlayer.container.style.left = (e.clientX - pipDragOffset.x) + 'px';
+    DOMElements.pipPlayer.container.style.top = (e.clientY - pipDragOffset.y) + 'px';
+    DOMElements.pipPlayer.container.style.right = 'auto';
+    DOMElements.pipPlayer.container.style.bottom = 'auto';
+}
+
+let isResizing = false;
+let startWidth, startHeight, startX, startY;
+
+function startResize(e) {
+    isResizing = true;
+    startWidth = parseInt(getComputedStyle(DOMElements.pipPlayer.container).width, 10);
+    startHeight = parseInt(getComputedStyle(DOMElements.pipPlayer.container).height, 10);
+    startX = e.clientX;
+    startY = e.clientY;
+    e.preventDefault();
+}
+
+function stopResize() {
+    isResizing = false;
+}
+
+function resize(e) {
+    if (!isResizing) return;
+    
+    const width = startWidth + (e.clientX - startX);
+    const height = startHeight + (e.clientY - startY);
+    
+    // Set minimum size
+    if (width > 300 && height > 200) {
+        DOMElements.pipPlayer.container.style.width = width + 'px';
+        DOMElements.pipPlayer.container.style.height = height + 'px';
+    }
+}
+
+// ===================================================================================
 // INITIALIZATION & UI LOGIC
 // ===================================================================================
 async function initializeAppState() {
@@ -499,11 +726,13 @@ async function initializeAppState() {
     DOMElements.profile.nameDisplay.textContent = currentUserData.profileName || "Floww User";
     loadTheme();
     await loadFaceApiModels();
+    await setupPoseDetection();
     
     // Initialize new features
     initJournal();
     initTimetable();
     initMacDock();
+    initYoutubePlayer();
     
     // Update streak display
     DOMElements.streak.count.textContent = currentUserData.streakCount || 0;
@@ -1135,10 +1364,26 @@ function toggleAmbience(type) {
     }
 }
 
-function getYoutubeVideoId(url) { return url.match(/(?:[?&]v=|\/embed\/|youtu\.be\/)([^"&?/\s]{11})/) ?.[1] || null; }
-function setYoutubeBackground(videoId) { document.getElementById("video-background-container").innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3" frameborder="0" allow="autoplay"></iframe>`; document.body.style.backgroundImage = 'none'; }
-function applyBackgroundTheme(path) { document.body.style.backgroundImage = `url('${path}')`; document.getElementById("video-background-container").innerHTML = ''; }
-function loadTheme() { if (currentUserData.theme?.backgroundPath) applyBackgroundTheme(currentUserData.theme.backgroundPath); if (currentUserData.theme?.youtubeVideoId) setYoutubeBackground(currentUserData.theme.youtubeVideoId); }
+function getYoutubeVideoId(url) { 
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[7].length === 11) ? match[7] : null;
+}
+
+function setYoutubeBackground(videoId) { 
+    document.getElementById("video-background-container").innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3" frameborder="0" allow="autoplay"></iframe>`; 
+    document.body.style.backgroundImage = 'none'; 
+}
+
+function applyBackgroundTheme(path) { 
+    document.body.style.backgroundImage = `url('${path}')`; 
+    document.getElementById("video-background-container").innerHTML = ''; 
+}
+
+function loadTheme() { 
+    if (currentUserData.theme?.backgroundPath) applyBackgroundTheme(currentUserData.theme.backgroundPath); 
+    if (currentUserData.theme?.youtubeVideoId) setYoutubeBackground(currentUserData.theme.youtubeVideoId); 
+}
 
 // Handle image upload for background
 function handleImageBackgroundUpload(e) {
