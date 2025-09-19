@@ -78,7 +78,7 @@
                 <span id="streak-emoji">🔥</span>
                 <span id="streak-count">0</span>
             </div>
-            <button id="statsBtn" class="header-btn">View Stats 📈</button>
+            <button id="statsBtn" class="header-btn">Customize</button>
             <button id="logoutBtn" class="header-btn btn-danger">Logout</button>
         </div>
     </header>
@@ -235,6 +235,14 @@
                     <button id="setYoutubeBtn">Set</button>
                 </div>
             </div>
+            <div class="settings-group">
+                <h3>🖼️ Custom Image Background</h3>
+                <div class="input-group">
+                    <input type="file" id="image-upload-input" accept="image/*" class="hidden">
+                    <button id="uploadImageBtn">Upload Image</button>
+                    <button id="clearImageBtn" class="btn-danger">Clear</button>
+                </div>
+            </div>
             <h3>Or Select a Theme</h3>
             <div id="storeItems">
                  <div class="store-item" data-type="image" data-path="https://images.unsplash.com/photo-1542831371-d648083a23de?q=80&w=2070&auto=format&fit=crop">
@@ -280,22 +288,14 @@
                         <span class="slider round"></span>
                     </label>
                 </div>
-                <p class="settings-description">Pauses the timer if you're away from the screen for 15+ seconds.</p>
-                <div class="toggle-switch-container">
-                    <label for="sleep-detection-toggle">Sleep Detection</label>
-                    <label class="switch">
-                        <input type="checkbox" id="sleep-detection-toggle">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <p class="settings-description">Pauses the timer if your eyes are closed for 10+ seconds.</p>
+                <p class="settings-description" id="accountability-warning">Pauses the timer if you're away from the screen for 30+ seconds. Note: This feature only works when you're using the current tab.</p>
             </div>
             <button id="saveSettingsBtn">Save Settings</button>
         </div>
         <div id="profileContainer" class="tab-content">
             <div class="info-zone">
                 <h3>🔥 Streak Info</h3>
-                <p>Complete at least one full work session of 25 minutes or more each day to build your streak. Keep the fire going!</p>
+                <p>Complete at least one full work session each day to build your streak. Keep the fire going!</p>
             </div>
              <div class="danger-zone">
                 <h3>⚠️ Danger Zone</h3>
