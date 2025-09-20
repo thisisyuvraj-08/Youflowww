@@ -59,6 +59,7 @@ function getDefaultUserData() {
             shortBreakDuration: 5 * 60,
             longBreakDuration: 15 * 60,
             soundProfile: "indian",
+            isAccountabilityOn: false,
         },
         theme: { backgroundPath: null, youtubeVideoId: null }
     };
@@ -98,6 +99,17 @@ let animationFrameId = null;
 let isSnowActive = false, isRainActive = false, isSakuraActive = false;
 let lastSnowSpawn = 0, lastRainSpawn = 0, lastSakuraSpawn = 0;
 const SNOW_INTERVAL = 200, RAIN_INTERVAL = 50, SAKURA_INTERVAL = 500;
+
+// ACCOUNTABILITY AI STATE
+const faceapi = window.faceapi;
+let faceApiInterval = null;
+window.faceApiInterval = faceApiInterval; // Make interval global for debugging
+let isAccountabilityOn = false;
+window.isAccountabilityOn = isAccountabilityOn; // Debug global
+let awayTimerStart = null;
+let modelsLoaded = false; // Flag to check if face-api models are loaded
+let poseDetector = null;
+let poseDetectionInterval = null;
 
 // YOUTUBE PLAYER STATE
 let youtubePlayer = null;
@@ -144,6 +156,7 @@ const DOMElements = {
     },
     settings: {
         soundEffects: document.getElementById('sound-effects-select'),
+        accountabilityToggle: document.getElementById('accountability-toggle'),
     },
     sounds: {
         whiteNoise: document.getElementById("whiteNoise"),
@@ -174,7 +187,6 @@ const DOMElements = {
     },
     timetable: {
         section: document.getElementById("timetable-section"),
-        hoursContainer: document.querySelector(".timetable-hours"),
         slotsContainer: document.querySelector(".timetable-slots"),
         days: document.querySelectorAll(".timetable-day"),
         addSlotBtn: document.getElementById("add-timeslot-btn"),
@@ -189,9 +201,6 @@ const DOMElements = {
         closeBtn: document.getElementById("pip-close-btn"),
         youtubeInput: document.getElementById("pip-youtube-input"),
         setBtn: document.getElementById("pip-set-btn"),
-        prevBtn: document.getElementById("pip-prev-btn"),
-        nextBtn: document.getElementById("pip-next-btn"),
-        playPauseBtn: document.getElementById("pip-playpause-btn"),
         resizeHandle: document.getElementById("pip-resize-handle")
     }
 };
@@ -288,6 +297,10 @@ function startTimer(isResume = false) {
     }
     endTime = Date.now() + timeLeft * 1000;
     updateUIState();
+    if (isAccountabilityOn) {
+        startFaceDetection();
+        startPoseDetection();
+    }
     timerInterval = setInterval(() => {
         timeLeft = Math.round((endTime - Date.now()) / 1000);
         if (timeLeft <= 0) {
@@ -300,6 +313,10 @@ function startTimer(isResume = false) {
             updateTimerDisplay();
         }
     }, 1000);
+
+    if (isAccountabilityOn && !DOMElements.video.srcObject) {
+        startVideo();
+    }
 }
 
 function pauseTimer(isAuto = false) {
@@ -309,6 +326,8 @@ function pauseTimer(isAuto = false) {
     if (!isAuto) {
         pauseWasManual = true;
         DOMElements.sounds.pauseAlert.play();
+        stopFaceDetection();
+        stopPoseDetection();
     } else {
         pauseWasManual = false;
     }
@@ -318,6 +337,8 @@ function pauseTimer(isAuto = false) {
 
 function resetTimer() {
     clearInterval(timerInterval);
+    stopFaceDetection();
+    stopPoseDetection();
     isRunning = false;
     isWorkSession = true;
     sessionCount = 0;
@@ -340,6 +361,7 @@ function handleSessionCompletion() {
     const minutesFocused = Math.floor(workDuration / 60);
     handleEndOfWorkSession(minutesFocused, true);
     showCompletionPopup();
+    if (isAccountabilityOn) showSessionReview();
     sessionCount++;
     isWorkSession = false;
     timeLeft = (sessionCount % 4 === 0) ? longBreakDuration : shortBreakDuration;
@@ -351,6 +373,9 @@ function handleSessionCompletion() {
 }
 
 function handleEndOfWorkSession(minutesFocused, sessionCompleted) {
+    stopFaceDetection();
+    stopPoseDetection();
+    stopVideo();
     if (minutesFocused > 0) {
         currentUserData.totalFocusMinutes = (currentUserData.totalFocusMinutes || 0) + minutesFocused;
         currentUserData.totalSessions = (currentUserData.totalSessions || 0) + 1;
@@ -396,6 +421,152 @@ function updateStreak() {
     
     // Update streak display
     DOMElements.streak.count.textContent = currentUserData.streakCount || 0;
+}
+
+// ===================================================================================
+// ACCOUNTABILITY AI (FACE-API.JS & POSE DETECTION)
+// ===================================================================================
+async function loadFaceApiModels() {
+    if (modelsLoaded) return;
+    const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
+    try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+        modelsLoaded = true;
+    } catch (error) {
+        console.error("Could not load face-api models:", error);
+    }
+}
+
+async function setupPoseDetection() {
+    try {
+        const detectorConfig = {
+            modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+            enableSmoothing: true
+        };
+        poseDetector = await poseDetection.createDetector(
+            poseDetection.SupportedModels.MoveNet,
+            detectorConfig
+        );
+    } catch (error) {
+        console.error("Could not load pose detection model:", error);
+    }
+}
+
+async function startVideo() {
+    try {
+        if (DOMElements.video.srcObject) return;
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            } 
+        });
+        DOMElements.video.srcObject = stream;
+        DOMElements.poseCanvas.width = DOMElements.video.videoWidth;
+        DOMElements.poseCanvas.height = DOMElements.video.videoHeight;
+    } catch (err) {
+        console.error("Camera access error:", err);
+        alert("Camera access is required for Accountability features. Please allow access and refresh.");
+        DOMElements.settings.accountabilityToggle.checked = false;
+        isAccountabilityOn = false;
+        window.isAccountabilityOn = isAccountabilityOn;
+        saveSettingsToData();
+    }
+}
+
+function stopVideo() {
+    if (DOMElements.video.srcObject) {
+        DOMElements.video.srcObject.getTracks().forEach(track => track.stop());
+        DOMElements.video.srcObject = null;
+    }
+}
+
+function startFaceDetection() {
+    if (!faceApiInterval && isAccountabilityOn) {
+        faceApiInterval = setInterval(handleFaceDetection, 1000);
+        window.faceApiInterval = faceApiInterval;
+    }
+}
+
+function stopFaceDetection() {
+    clearInterval(faceApiInterval);
+    faceApiInterval = null;
+    window.faceApiInterval = faceApiInterval;
+    hideFaceStatusPrompt();
+    awayTimerStart = null;
+}
+
+function startPoseDetection() {
+    if (!poseDetectionInterval && isAccountabilityOn && poseDetector) {
+        poseDetectionInterval = setInterval(handlePoseDetection, 1000);
+    }
+}
+
+function stopPoseDetection() {
+    clearInterval(poseDetectionInterval);
+    poseDetectionInterval = null;
+}
+
+async function handleFaceDetection() {
+    if (!modelsLoaded || !isRunning || DOMElements.video.paused || DOMElements.video.ended || !DOMElements.video.srcObject) return;
+    
+    try {
+        const detections = await faceapi.detectAllFaces(
+            DOMElements.video, 
+            new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 })
+        ).withFaceLandmarks(true);
+
+        const faceDetected = detections.length > 0;
+        handlePresenceDetection(faceDetected);
+    } catch (error) {
+        console.error("Face detection error:", error);
+    }
+}
+
+async function handlePoseDetection() {
+    if (!poseDetector || !isRunning || DOMElements.video.paused || DOMElements.video.ended || !DOMElements.video.srcObject) return;
+    
+    try {
+        const poses = await poseDetector.estimatePoses(DOMElements.video);
+        const personDetected = poses.length > 0 && poses[0].keypoints.some(kp => kp.score > 0.4);
+        
+        // If pose detection finds a person, use that instead of face detection
+        if (personDetected) {
+            handlePresenceDetection(true);
+        }
+    } catch (error) {
+        console.error("Pose detection error:", error);
+    }
+}
+
+function handlePresenceDetection(presenceDetected) {
+    if (isAccountabilityOn) {
+        if (!presenceDetected) {
+            if (!awayTimerStart) {
+                awayTimerStart = Date.now();
+                showFaceStatusPrompt("Are you there? Timer will pause soon...");
+            } else if (Date.now() - awayTimerStart > 30000) { // 30 seconds
+                pauseTimer(true);
+                showFaceStatusPrompt("Timer paused. Come back to resume.");
+            }
+        } else {
+            if (awayTimerStart) {
+                awayTimerStart = null;
+                hideFaceStatusPrompt();
+                if (!isRunning && !pauseWasManual) startTimer(true);
+            }
+        }
+    }
+}
+
+function showFaceStatusPrompt(message) {
+    DOMElements.faceStatusPrompt.textContent = message;
+    DOMElements.faceStatusPrompt.classList.add('visible');
+}
+
+function hideFaceStatusPrompt() {
+    DOMElements.faceStatusPrompt.classList.remove('visible');
 }
 
 // ===================================================================================
@@ -480,32 +651,6 @@ function setupPipPlayer() {
         }
     });
     
-    // Previous video
-    DOMElements.pipPlayer.prevBtn.addEventListener('click', () => {
-        if (youtubePlayer) {
-            youtubePlayer.previousVideo();
-        }
-    });
-    
-    // Next video
-    DOMElements.pipPlayer.nextBtn.addEventListener('click', () => {
-        if (youtubePlayer) {
-            youtubePlayer.nextVideo();
-        }
-    });
-    
-    // Play/Pause
-    DOMElements.pipPlayer.playPauseBtn.addEventListener('click', () => {
-        if (youtubePlayer) {
-            const state = youtubePlayer.getPlayerState();
-            if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
-                youtubePlayer.pauseVideo();
-            } else {
-                youtubePlayer.playVideo();
-            }
-        }
-    });
-    
     // Make PiP player draggable
     DOMElements.pipPlayer.header.addEventListener('mousedown', startDrag);
     document.addEventListener('mouseup', stopDrag);
@@ -580,6 +725,8 @@ async function initializeAppState() {
     updateCornerWidget();
     DOMElements.profile.nameDisplay.textContent = currentUserData.profileName || "Floww User";
     loadTheme();
+    await loadFaceApiModels();
+    await setupPoseDetection();
     
     // Initialize new features
     initJournal();
@@ -606,6 +753,10 @@ function loadSettingsFromData() {
     document.getElementById('short-break-duration').value = shortBreakDuration / 60;
     document.getElementById('long-break-duration').value = longBreakDuration / 60;
     DOMElements.settings.soundEffects.value = settings.soundProfile || 'indian';
+    DOMElements.settings.accountabilityToggle.checked = settings.isAccountabilityOn || false;
+
+    isAccountabilityOn = settings.isAccountabilityOn || false;
+    window.isAccountabilityOn = isAccountabilityOn;
 }
 
 function saveSettingsToData() {
@@ -619,6 +770,10 @@ function saveSettingsToData() {
         currentUserData.settings.shortBreakDuration = newShort;
         currentUserData.settings.longBreakDuration = newLong;
         currentUserData.settings.soundProfile = DOMElements.settings.soundEffects.value;
+        currentUserData.settings.isAccountabilityOn = DOMElements.settings.accountabilityToggle.checked;
+
+        isAccountabilityOn = DOMElements.settings.accountabilityToggle.checked;
+        window.isAccountabilityOn = isAccountabilityOn;
 
         saveUserData();
         loadSettingsFromData();
@@ -689,6 +844,7 @@ function createTodoElement(todo, index) {
                 <input type="checkbox" id="todo-${index}" ${todo.completed ? 'checked' : ''}>
                 <label for="todo-${index}" class="todo-title">${todo.text}</label>
                 <button class="todo-expand-btn"><i class="fas fa-chevron-down"></i></button>
+                <button class="todo-delete-btn"><i class="fas fa-trash"></i></button>
             </div>
             <div class="todo-details">
                 <div class="todo-meta">
@@ -701,7 +857,7 @@ function createTodoElement(todo, index) {
                         <button class="add-subtask-btn"><i class="fas fa-plus"></i></button>
                     </div>
                     <ul class="subtask-list">
-                        ${renderSubtasks(todo.subtasks || [])}
+                        ${renderSubtasks(todo.subtasks || [], index)}
                     </ul>
                 </div>
             </div>
@@ -716,6 +872,10 @@ function createTodoElement(todo, index) {
         const icon = li.querySelector('.todo-expand-btn i');
         icon.classList.toggle('fa-chevron-down');
         icon.classList.toggle('fa-chevron-up');
+    };
+    
+    li.querySelector('.todo-delete-btn').onclick = () => {
+        deleteTodo(index);
     };
     
     li.querySelector('.add-subtask-btn').onclick = () => {
@@ -735,11 +895,12 @@ function createTodoElement(todo, index) {
     return li;
 }
 
-function renderSubtasks(subtasks) {
+function renderSubtasks(subtasks, todoIndex) {
     return subtasks.map((subtask, i) => `
         <li class="subtask-item">
-            <input type="checkbox" ${subtask.completed ? 'checked' : ''}>
+            <input type="checkbox" ${subtask.completed ? 'checked' : ''} data-todo-index="${todoIndex}" data-subtask-index="${i}">
             <label>${subtask.text}</label>
+            <button class="subtask-delete-btn" data-todo-index="${todoIndex}" data-subtask-index="${i}"><i class="fas fa-times"></i></button>
         </li>
     `).join('');
 }
@@ -764,6 +925,14 @@ function addTodo() {
 function toggleTodo(index) {
     if (currentUserData.todos[index]) {
         currentUserData.todos[index].completed = !currentUserData.todos[index].completed;
+        saveUserData();
+        loadTodos();
+    }
+}
+
+function deleteTodo(index) {
+    if (confirm("Delete this task?")) {
+        currentUserData.todos.splice(index, 1);
         saveUserData();
         loadTodos();
     }
@@ -819,6 +988,41 @@ function makeTodoListSortable() {
             }
         });
     });
+}
+
+// Add event delegation for subtask checkboxes and delete buttons
+document.addEventListener('click', (e) => {
+    // Handle subtask checkbox toggle
+    if (e.target.matches('.subtask-item input[type="checkbox"]')) {
+        const todoIndex = e.target.dataset.todoIndex;
+        const subtaskIndex = e.target.dataset.subtaskIndex;
+        toggleSubtask(todoIndex, subtaskIndex);
+    }
+    
+    // Handle subtask delete button
+    if (e.target.closest('.subtask-delete-btn')) {
+        const btn = e.target.closest('.subtask-delete-btn');
+        const todoIndex = btn.dataset.todoIndex;
+        const subtaskIndex = btn.dataset.subtaskIndex;
+        deleteSubtask(todoIndex, subtaskIndex);
+    }
+});
+
+function toggleSubtask(todoIndex, subtaskIndex) {
+    if (currentUserData.todos[todoIndex] && currentUserData.todos[todoIndex].subtasks[subtaskIndex]) {
+        currentUserData.todos[todoIndex].subtasks[subtaskIndex].completed = 
+            !currentUserData.todos[todoIndex].subtasks[subtaskIndex].completed;
+        saveUserData();
+        loadTodos();
+    }
+}
+
+function deleteSubtask(todoIndex, subtaskIndex) {
+    if (currentUserData.todos[todoIndex] && currentUserData.todos[todoIndex].subtasks[subtaskIndex]) {
+        currentUserData.todos[todoIndex].subtasks.splice(subtaskIndex, 1);
+        saveUserData();
+        loadTodos();
+    }
 }
 
 // ===================================================================================
@@ -982,29 +1186,24 @@ function initTimetable() {
     // Activate Monday by default
     DOMElements.timetable.days[0].classList.add('active');
     highlightDaySlots('monday');
+    
+    // Highlight current time slot
+    highlightCurrentTimeSlot();
+    // Update every minute
+    setInterval(highlightCurrentTimeSlot, 60000);
 }
 
 function generateTimeSlots() {
-    const hoursContainer = DOMElements.timetable.hoursContainer;
     const slotsContainer = DOMElements.timetable.slotsContainer;
-    hoursContainer.innerHTML = '';
     slotsContainer.innerHTML = '';
     
-    // Create 24 hours (0-23)
-    for (let hour = 0; hour < 24; hour++) {
-        // Create hour label
-        const hourLabel = document.createElement('div');
-        hourLabel.className = 'timetable-hour';
-        hourLabel.textContent = formatHour(hour);
-        hoursContainer.appendChild(hourLabel);
-        
-        // Create slots for each day
-        for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-            const day = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][dayIndex];
+    // Create 7 columns (days) x 16 rows (hours)
+    for (let i = 0; i < 16; i++) {
+        for (let j = 0; j < 7; j++) {
             const slot = document.createElement('div');
             slot.className = 'timetable-slot';
-            slot.dataset.hour = hour;
-            slot.dataset.day = day;
+            slot.dataset.hour = i + 6; // 6 AM to 9 PM
+            slot.dataset.day = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][j];
             
             // Add event listener for editing
             slot.addEventListener('click', () => {
@@ -1014,13 +1213,6 @@ function generateTimeSlots() {
             slotsContainer.appendChild(slot);
         }
     }
-}
-
-function formatHour(hour) {
-    if (hour === 0) return '12 AM';
-    if (hour < 12) return `${hour} AM`;
-    if (hour === 12) return '12 PM';
-    return `${hour - 12} PM`;
 }
 
 function highlightDaySlots(day) {
@@ -1034,6 +1226,26 @@ function highlightDaySlots(day) {
     });
 }
 
+function highlightCurrentTimeSlot() {
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const currentHour = now.getHours();
+    
+    // Convert to our day format (monday, tuesday, etc.)
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const currentDayName = days[currentDay];
+    
+    // Remove active class from all slots
+    const allSlots = document.querySelectorAll('.timetable-slot');
+    allSlots.forEach(slot => slot.classList.remove('active'));
+    
+    // Find and highlight the current time slot
+    const currentSlot = document.querySelector(`.timetable-slot[data-day="${currentDayName}"][data-hour="${currentHour}"]`);
+    if (currentSlot) {
+        currentSlot.classList.add('active');
+    }
+}
+
 function loadTimetableData() {
     const timetable = currentUserData.timetable || {};
     const allSlots = document.querySelectorAll('.timetable-slot');
@@ -1044,19 +1256,14 @@ function loadTimetableData() {
         const key = `${day}-${hour}`;
         
         if (timetable[key]) {
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'timetable-slot-content';
-            contentDiv.textContent = timetable[key].text;
-            slot.innerHTML = '';
-            slot.appendChild(contentDiv);
-            
+            slot.textContent = timetable[key].text;
             if (timetable[key].completed) {
                 slot.classList.add('completed');
             } else {
                 slot.classList.remove('completed');
             }
         } else {
-            slot.innerHTML = '';
+            slot.textContent = '';
             slot.classList.remove('completed');
         }
     });
@@ -1068,65 +1275,26 @@ function editTimeSlot(slot) {
     const key = `${day}-${hour}`;
     
     const currentText = currentUserData.timetable && currentUserData.timetable[key] ? currentUserData.timetable[key].text : '';
-    const isCompleted = currentUserData.timetable && currentUserData.timetable[key] ? currentUserData.timetable[key].completed : false;
     
-    // Create a modal for editing
-    const modal = document.createElement('div');
-    modal.className = 'timeslot-modal';
-    modal.innerHTML = `
-        <div class="timeslot-modal-content">
-            <h3>Edit ${formatHour(parseInt(hour))} on ${day.charAt(0).toUpperCase() + day.slice(1)}</h3>
-            <div class="timeslot-form">
-                <textarea id="timeslot-text" placeholder="Enter activity..." rows="3">${currentText}</textarea>
-                <div>
-                    <input type="checkbox" id="timeslot-completed" ${isCompleted ? 'checked' : ''}>
-                    <label for="timeslot-completed">Mark as completed</label>
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button id="timeslot-cancel" class="btn-danger">Cancel</button>
-                    <button id="timeslot-delete" class="btn-danger">Delete</button>
-                    <button id="timeslot-save">Save</button>
-                </div>
-            </div>
-        </div>
-    `;
+    const newText = prompt(`Enter activity for ${day} at ${hour}:00`, currentText);
     
-    document.body.appendChild(modal);
-    
-    // Event listeners
-    document.getElementById('timeslot-cancel').addEventListener('click', () => {
-        document.body.removeChild(modal);
-    });
-    
-    document.getElementById('timeslot-delete').addEventListener('click', () => {
-        if (confirm("Delete this time slot?")) {
-            if (!currentUserData.timetable) currentUserData.timetable = {};
-            delete currentUserData.timetable[key];
-            saveUserData();
-            loadTimetableData();
-            document.body.removeChild(modal);
-        }
-    });
-    
-    document.getElementById('timeslot-save').addEventListener('click', () => {
-        const text = document.getElementById('timeslot-text').value.trim();
-        const completed = document.getElementById('timeslot-completed').checked;
-        
+    if (newText !== null) {
         if (!currentUserData.timetable) currentUserData.timetable = {};
         
-        if (text) {
-            currentUserData.timetable[key] = {
-                text: text,
-                completed: completed
-            };
-        } else {
+        if (newText.trim() === '') {
+            // Remove the slot if text is empty
             delete currentUserData.timetable[key];
+        } else {
+            // Update the slot
+            currentUserData.timetable[key] = {
+                text: newText.trim(),
+                completed: false
+            };
         }
         
         saveUserData();
         loadTimetableData();
-        document.body.removeChild(modal);
-    });
+    }
 }
 
 function addTimeSlot() {
@@ -1134,11 +1302,11 @@ function addTimeSlot() {
     if (!activeDay) return;
     
     const day = activeDay.dataset.day;
-    const hour = prompt(`Enter the hour for ${day} (0-23):`);
+    const hour = prompt(`Enter the hour for ${day} (6-21):`);
     
-    if (hour !== null && hour >= 0 && hour <= 23) {
+    if (hour && hour >= 6 && hour <= 21) {
         const key = `${day}-${hour}`;
-        const activity = prompt(`Enter activity for ${day} at ${formatHour(parseInt(hour))}:`);
+        const activity = prompt(`Enter activity for ${day} at ${hour}:00:`);
         
         if (activity !== null) {
             if (!currentUserData.timetable) currentUserData.timetable = {};
@@ -1150,8 +1318,8 @@ function addTimeSlot() {
             saveUserData();
             loadTimetableData();
         }
-    } else if (hour !== null) {
-        alert('Please enter a valid hour between 0 and 23.');
+    } else if (hour) {
+        alert('Please enter a valid hour between 6 and 21.');
     }
 }
 
@@ -1246,11 +1414,26 @@ function toggleFocusMode() {
 }
 
 function ambientLoop(timestamp) {
-    if (isSnowActive && timestamp - lastSnowSpawn > SNOW_INTERVAL) { lastSnowSpawn = timestamp; createAndAnimateElement('snowflake', 8, 15, 'fall'); }
-    if (isRainActive && timestamp - lastRainSpawn > RAIN_INTERVAL) { lastRainSpawn = timestamp; createAndAnimateElement('raindrop', 0.4, 0.8, 'fall'); }
-    if (isSakuraActive && timestamp - lastSakuraSpawn > SAKURA_INTERVAL) { lastSakuraSpawn = timestamp; createAndAnimateElement('sakura', 15, 25, 'spinFall'); }
-    if (isSnowActive || isRainActive || isSakuraActive) { animationFrameId = requestAnimationFrame(ambientLoop); } else { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+    if (isSnowActive && timestamp - lastSnowSpawn > SNOW_INTERVAL) { 
+        lastSnowSpawn = timestamp; 
+        createAndAnimateElement('snowflake', 8, 15, 'fall'); 
+    }
+    if (isRainActive && timestamp - lastRainSpawn > RAIN_INTERVAL) { 
+        lastRainSpawn = timestamp; 
+        createAndAnimateElement('raindrop', 0.4, 0.8, 'fall'); 
+    }
+    if (isSakuraActive && timestamp - lastSakuraSpawn > SAKURA_INTERVAL) { 
+        lastSakuraSpawn = timestamp; 
+        createAndAnimateElement('sakura', 15, 25, 'spinFall'); 
+    }
+    if (isSnowActive || isRainActive || isSakuraActive) { 
+        animationFrameId = requestAnimationFrame(ambientLoop); 
+    } else { 
+        cancelAnimationFrame(animationFrameId); 
+        animationFrameId = null; 
+    }
 }
+
 function createAndAnimateElement(className, minDuration, maxDuration, animationName) {
     const el = document.createElement('div');
     el.className = `ambient-effect ${className}`;
@@ -1259,6 +1442,7 @@ function createAndAnimateElement(className, minDuration, maxDuration, animationN
     DOMElements.ambientContainer.appendChild(el);
     el.addEventListener('animationend', () => el.remove());
 }
+
 function toggleAmbience(type) {
     if (type === 'snow') isSnowActive = !isSnowActive;
     if (type === 'rain') isRainActive = !isRainActive;
@@ -1332,7 +1516,7 @@ function attachMainAppEventListeners() {
     document.getElementById('closeReviewModalBtn').addEventListener('click', () => DOMElements.modals.review.classList.remove('visible'));
     document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
     document.getElementById("noiseBtn").addEventListener('click', (e) => { const noise = DOMElements.sounds.whiteNoise; noise.paused ? noise.play() : noise.pause(); e.target.textContent = noise.paused ? "🎧 Play Noise" : "🎧 Stop Noise"; });
-    document.getElementById("s snowBtn").addEventListener('click', () => toggleAmbience('snow'));
+    document.getElementById("snowBtn").addEventListener('click', () => toggleAmbience('snow'));
     document.getElementById("rainBtn").addEventListener('click', () => toggleAmbience('rain'));
     document.getElementById("sakuraBtn").addEventListener('click', () => toggleAmbience('sakura'));
     document.getElementById("focusModeBtn").addEventListener('click', toggleFocusMode);
@@ -1342,20 +1526,42 @@ function attachMainAppEventListeners() {
     document.querySelector('.clear-todos-btn').addEventListener('click', clearTodos);
     document.getElementById('todo-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTodo(); });
     document.getElementById("saveSettingsBtn").addEventListener('click', saveSettingsToData);
+    DOMElements.settings.accountabilityToggle.addEventListener('change', (e) => { 
+        isAccountabilityOn = e.target.checked; 
+        window.isAccountabilityOn = isAccountabilityOn;
+        saveSettingsToData();
+        
+        // Show info about accountability feature
+        if (isAccountabilityOn) {
+            alert("Accountability feature enabled. Note: This feature only works when you're using the current tab.");
+        }
+    });
     document.getElementById('storeItems').addEventListener('click', (e) => { 
         if (e.target.tagName !== 'BUTTON') return;
         const item = e.target.closest('.store-item'); 
         currentUserData.theme = {}; 
-        if (item.dataset.type === 'image') { currentUserData.theme.backgroundPath = item.dataset.path; applyBackgroundTheme(item.dataset.path); } 
-        else if (item.dataset.type === 'youtube') { currentUserData.theme.youtubeVideoId = item.dataset.id; setYoutubeBackground(item.dataset.id); }
+        if (item.dataset.type === 'image') { 
+            currentUserData.theme.backgroundPath = item.dataset.path; 
+            applyBackgroundTheme(item.dataset.path); 
+        } 
+        else if (item.dataset.type === 'youtube') { 
+            currentUserData.theme.youtubeVideoId = item.dataset.id; 
+            setYoutubeBackground(item.dataset.id); 
+        }
         saveUserData();
         closeStats();
     });
     document.getElementById("setYoutubeBtn").addEventListener('click', () => {
         const url = document.getElementById("youtube-input").value; 
         const videoId = getYoutubeVideoId(url);
-        if (videoId) { currentUserData.theme = { youtubeVideoId: videoId, backgroundPath: null }; setYoutubeBackground(videoId); saveUserData(); } 
-        else if (url) { alert("Please enter a valid YouTube URL."); }
+        if (videoId) { 
+            currentUserData.theme = { youtubeVideoId: videoId, backgroundPath: null }; 
+            setYoutubeBackground(videoId); 
+            saveUserData(); 
+        } 
+        else if (url) { 
+            alert("Please enter a valid YouTube URL."); 
+        }
     });
     document.getElementById("uploadImageBtn").addEventListener('click', () => {
         document.getElementById("image-upload-input").click();
@@ -1419,36 +1625,102 @@ function attachMainAppEventListeners() {
     DOMElements.journal.entry.addEventListener('input', updateCharCount);
     DOMElements.journal.saveBtn.addEventListener('click', saveJournalEntry);
     DOMElements.journal.imageUpload.addEventListener('change', handleImageUpload);
-    document.getElementById('upload-image-btn').addEventListener('click', () => {
-        DOMElements.journal.imageUpload.click();
-    });
+    document.getElementById('upload-image-btn').addEventListener('click', () => DOMElements.journal.imageUpload.click());
+    
     DOMElements.timetable.addSlotBtn.addEventListener('click', addTimeSlot);
     DOMElements.timetable.clearBtn.addEventListener('click', clearTimetable);
     
-    setInterval(updateCornerWidget, 30000);
+    // Event delegation for todo list (for dynamically created elements)
+    document.addEventListener('click', (e) => {
+        if (e.target.matches('.todo-delete-btn, .todo-delete-btn *')) {
+            const btn = e.target.closest('.todo-delete-btn');
+            const li = btn.closest('.todo-item');
+            const index = parseInt(li.dataset.index);
+            deleteTodo(index);
+        }
+    });
 }
 
+// ===================================================================================
+// CHART.JS RENDERING
+// ===================================================================================
 function renderCharts() {
-    const weeklyData = currentUserData.weeklyFocus || {};
-    const today = new Date();
-    const labels = Array.from({ length: 7 }, (_, i) => { const d = new Date(today); d.setDate(today.getDate() - (6 - i)); return d.toLocaleDateString('en-US', { weekday: 'short' }); });
-    const data = labels.map((_, i) => { const d = new Date(today); d.setDate(today.getDate() - (6 - i)); const key = d.toISOString().slice(0, 10); return (weeklyData[key] || 0) / 60; });
+    const weeklyFocus = currentUserData.weeklyFocus || {};
+    const last7Days = [...Array(7)].map((_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - i); return d.toISOString().slice(0, 10);
+    }).reverse();
+    const focusData = last7Days.map(date => weeklyFocus[date] || 0);
+    
+    // Bar Chart (Weekly Focus)
     const barCtx = document.getElementById('barChart').getContext('2d');
-    if (window.myBarChart) window.myBarChart.destroy();
-    window.myBarChart = new Chart(barCtx, { type: 'bar', data: { labels, datasets: [{ label: 'Daily Focus (hours)', data, backgroundColor: '#f7a047', borderRadius: 5 }] }, options: { maintainAspectRatio: false, responsive: true } });
-    const totalFocus = currentUserData.totalFocusMinutes || 0;
-    const totalSessions = currentUserData.totalSessions || 0;
-    const totalBreak = totalSessions * ((currentUserData.settings?.shortBreakDuration || 300) / 60);
+    if (window.barChartInstance) window.barChartInstance.destroy();
+    window.barChartInstance = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+            labels: last7Days.map(d => new Date(d).toLocaleDateString('en-US', { weekday: 'short' })),
+            datasets: [{
+                label: 'Focus Minutes',
+                data: focusData,
+                backgroundColor: 'rgba(108, 99, 255, 0.5)',
+                borderColor: 'rgba(108, 99, 255, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#e0e0e0' },
+                    grid: { color: 'rgba(255,255,255,0.1)' }
+                },
+                x: {
+                    ticks: { color: '#e0e0e0' },
+                    grid: { color: 'rgba(255,255,255,0.1)' }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#e0e0e0' } }
+            }
+        }
+    });
+    
+    // Pie Chart (Sessions Distribution)
     const pieCtx = document.getElementById('pieChart').getContext('2d');
-    if(window.myPieChart) window.myPieChart.destroy();
-    window.myPieChart = new Chart(pieCtx, {type: 'pie', data: { labels: ['Work', 'Break'], datasets: [{ data: [totalFocus, totalBreak], backgroundColor: ['#f7a047', '#6c63ff'] }] }, options: { maintainAspectRatio: false, responsive: true }});
+    if (window.pieChartInstance) window.pieChartInstance.destroy();
+    window.pieChartInstance = new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Completed', 'Incomplete'],
+            datasets: [{
+                data: [currentUserData.totalSessions || 0, Math.max(0, (currentUserData.totalFocusMinutes || 0) - (currentUserData.totalSessions || 0))],
+                backgroundColor: ['rgba(76, 175, 80, 0.5)', 'rgba(244, 67, 54, 0.5)'],
+                borderColor: ['rgba(76, 175, 80, 1)', 'rgba(244, 67, 54, 1)'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { labels: { color: '#e0e0e0' } }
+            }
+        }
+    });
 }
 
 function switchTab(tabName) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
     document.getElementById(`${tabName}Container`).classList.add('active');
+    if (tabName === 'stats') renderCharts();
 }
 
-attachMainAppEventListeners();
+// ===================================================================================
+// INITIALIZATION
+// ===================================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    attachMainAppEventListeners();
+    setInterval(updateCornerWidget, 60000);
+    updateCornerWidget();
+});
