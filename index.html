@@ -127,273 +127,367 @@
         
         <!-- New Journal Section -->
         <section id="journal-section" class="hidden">
-            <div class="section-header">
-                <h2><i class="fas fa-book-open"></i> Daily Journal</h2>
-                <div class="journal-date">
-                    <span id="journal-current-date"></span>
+            <div class="journal-header">
+                <div class="journal-date-display">
+                    <div class="journal-day">SAT</div>
+                    <div class="journal-full-date">September 2025</div>
+                </div>
+                <div class="journal-greeting">
+                    <div>Good Evening,</div>
+                    <div id="journal-username">yuvraj1234</div>
                 </div>
             </div>
-            <div class="journal-container">
-                <div class="journal-status">
-                    <span id="journal-char-count">0/1024</span> characters
-                    <span id="journal-save-status" class="journal-save-status"></span>
+            
+            <div class="journal-main-content">
+                <div class="journal-left-panel">
+                    <div class="journal-card">
+                        <h3><i class="fas fa-bullseye"></i> My Goal 💡</h3>
+                        <p>What is your main goal for today?</p>
+                        <div class="goal-input-container">
+                            <textarea id="daily-goal" placeholder="Write your goal here..." maxlength="100"></textarea>
+                            <div class="goal-counter"><span id="goal-char-count">0</span>/100</div>
+                        </div>
+                        <div class="past-entries-link">
+                            <a href="#"><i class="fas fa-history"></i> Past Entries</a>
+                        </div>
+                    </div>
+                    
+                    <div class="journal-card">
+                        <h3><i class="fas fa-chart-line"></i> Focus Score</h3>
+                        <div class="focus-score-display">
+                            <div class="score-ring">
+                                <div class="ring-progress" data-progress="3">
+                                    <span>3%</span>
+                                </div>
+                            </div>
+                            <div class="score-details">
+                                <div class="score-label">Productivity</div>
+                                <div class="score-trend">Trending up by 2200X</div>
+                                <div class="score-compared">compared to yesterday</div>
+                                <div class="focus-time">Focus Time: 23 Mins / 19 Hrs 3 Mins</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <textarea id="journal-entry" placeholder="Write about your day... (max 1024 characters)" maxlength="1024"></textarea>
-                <div class="journal-controls">
-                    <button id="upload-image-btn" class="journal-btn">
-                        <i class="fas fa-image"></i> Add Image
-                    </button>
-                    <input type="file" id="journal-image-upload" accept="image/*" class="hidden">
-                    <button id="save-journal-btn" class="journal-btn primary">
-                        <i class="fas fa-save"></i> Save Entry
-                    </button>
-                </div>
-                <div id="journal-image-preview" class="journal-image-preview hidden"></div>
-                <div id="journal-previous-entries" class="journal-previous-entries">
-                    <h3>Previous Entries</h3>
-                    <div id="journal-entries-list"></div>
+                
+                <div class="journal-right-panel">
+                    <div class="journal-card">
+                        <h3><i class="fas fa-calendar-alt"></i> Today, 20 September</h3>
+                        <div class="today-prompt">
+                            <p>How can you ensure you stay focused on what truly matters today?</p>
+                        </div>
+                        <div class="journal-entry-area">
+                            <textarea id="journal-entry" placeholder="Write your journal entry here..." maxlength="1024"></textarea>
+                            <div class="entry-actions">
+                                <div class="char-counter"><span id="journal-char-count">0</span>/1024 characters</div>
+                                <button id="save-journal-btn" class="journal-save-btn">
+                                    <i class="fas fa-save"></i> Save Entry
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mood-section">
+                        <h3><i class="fas fa-smile"></i> Mood</h3>
+                        <div class="mood-options">
+                            <div class="mood-option" data-mood="1">😢</div>
+                            <div class="mood-option" data-mood="2">😔</div>
+                            <div class="mood-option" data-mood="3" data-selected="true">😐</div>
+                            <div class="mood-option" data-mood="4">😊</div>
+                            <div class="mood-option" data-mood="5">😄</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
         
         <!-- New Timetable Section -->
         <section id="timetable-section" class="hidden">
-            <div class="section-header">
-                <h2><i class="fas fa-calendar-alt"></i> Personal Timetable</h2>
+            <div class="timetable-header">
+                <h2><i class="fas fa-calendar-alt"></i> Weekly Schedule</h2>
                 <div class="timetable-controls">
-                    <button id="add-timeslot-btn" class="timetable-btn">
+                    <div class="week-navigation">
+                        <button id="prev-week-btn" class="week-nav-btn"><i class="fas fa-chevron-left"></i></button>
+                        <span id="current-week-display">Sep 15 - Sep 21, 2025</span>
+                        <button id="next-week-btn" class="week-nav-btn"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <button id="add-timeslot-btn" class="timetable-action-btn">
                         <i class="fas fa-plus"></i> Add Time Slot
-                    </button>
-                    <button id="clear-timetable-btn" class="timetable-btn danger">
-                        <i class="fas fa-trash"></i> Clear All
                     </button>
                 </div>
             </div>
-            <div class="timetable-container">
-                <div class="timetable-days">
-                    <div class="timetable-day" data-day="monday">Monday</div>
-                    <div class="timetable-day" data-day="tuesday">Tuesday</div>
-                    <div class="timetable-day" data-day="wednesday">Wednesday</div>
-                    <div class="timetable-day" data-day="thursday">Thursday</div>
-                    <div class="timetable-day" data-day="friday">Friday</div>
-                    <div class="timetable-day" data-day="saturday">Saturday</div>
-                    <div class="timetable-day" data-day="sunday">Sunday</div>
+            
+            <div class="timetable-content">
+                <div class="timetable-days-header">
+                    <div class="time-column"></div>
+                    <div class="day-header" data-day="monday">
+                        <div class="day-name">Mon</div>
+                        <div class="day-date">15</div>
+                    </div>
+                    <div class="day-header" data-day="tuesday">
+                        <div class="day-name">Tue</div>
+                        <div class="day-date">16</div>
+                    </div>
+                    <div class="day-header" data-day="wednesday">
+                        <div class="day-name">Wed</div>
+                        <div class="day-date">17</div>
+                    </div>
+                    <div class="day-header" data-day="thursday">
+                        <div class="day-name">Thu</div>
+                        <div class="day-date">18</div>
+                    </div>
+                    <div class="day-header" data-day="friday">
+                        <div class="day-name">Fri</div>
+                        <div class="day-date">19</div>
+                    </div>
+                    <div class="day-header" data-day="saturday">
+                        <div class="day-name">Sat</div>
+                        <div class="day-date">20</div>
+                    </div>
+                    <div class="day-header" data-day="sunday">
+                        <div class="day-name">Sun</div>
+                        <div class="day-date">21</div>
+                    </div>
                 </div>
-                <div class="timetable-slots-container">
-                    <div class="timetable-hours">
-                        <div class="timetable-hour">6 AM</div>
-                        <div class="timetable-hour">7 AM</div>
-                        <div class="timetable-hour">8 AM</div>
-                        <div class="timetable-hour">9 AM</div>
-                        <div class="timetable-hour">10 AM</div>
-                        <div class="timetable-hour">11 AM</div>
-                        <div class="timetable-hour">12 PM</div>
-                        <div class="timetable-hour">1 PM</div>
-                        <div class="timetable-hour">2 PM</div>
-                        <div class="timetable-hour">3 PM</div>
-                        <div class="timetable-hour">4 PM</div>
-                        <div class="timetable-hour">5 PM</div>
-                        <div class="timetable-hour">6 PM</div>
-                        <div class="timetable-hour">7 PM</div>
-                        <div class="timetable-hour">8 PM</div>
-                        <div class="timetable-hour">9 PM</div>
+                
+                <div class="timetable-grid">
+                    <div class="time-labels">
+                        <!-- Time labels will be generated dynamically -->
                     </div>
-                    <div class="timetable-slots">
-                        <!-- Time slots will be generated by JavaScript -->
+                    
+                    <div class="timetable-days">
+                        <div class="timetable-day" data-day="monday">
+                            <!-- Time slots will be added here -->
+                        </div>
+                        <div class="timetable-day" data-day="tuesday">
+                            <!-- Time slots will be added here -->
+                        </div>
+                        <div class="timetable-day" data-day="wednesday">
+                            <!-- Time slots will be added here -->
+                        </div>
+                        <div class="timetable-day" data-day="thursday">
+                            <!-- Time slots will be added here -->
+                        </div>
+                        <div class="timetable-day" data-day="friday">
+                            <!-- Time slots will be added here -->
+                        </div>
+                        <div class="timetable-day" data-day="saturday">
+                            <!-- Time slots will be added here -->
+                        </div>
+                        <div class="timetable-day" data-day="sunday">
+                            <!-- Time slots will be added here -->
+                        </div>
                     </div>
+                </div>
+            </div>
+            
+            <!-- Add Time Slot Modal -->
+            <div id="add-timeslot-modal" class="modal">
+                <div class="modal-content timeslot-modal">
+                    <span class="close-btn">&times;</span>
+                    <h3>Add New Time Slot</h3>
+                    <form id="timeslot-form">
+                        <div class="form-group">
+                            <label for="timeslot-day">Day</label>
+                            <select id="timeslot-day" required>
+                                <option value="monday">Monday</option>
+                                <option value="tuesday">Tuesday</option>
+                                <option value="wednesday">Wednesday</option>
+                                <option value="thursday">Thursday</option>
+                                <option value="friday">Friday</option>
+                                <option value="saturday">Saturday</option>
+                                <option value="sunday">Sunday</option>
+                            </select>
+                        </div>
+                        <div class="form-group double-column">
+                            <div>
+                                <label for="timeslot-start">Start Time</label>
+                                <input type="time" id="timeslot-start" required>
+                            </div>
+                            <div>
+                                <label for="timeslot-end">End Time</label>
+                                <input type="time" id="timeslot-end" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="timeslot-activity">Activity</label>
+                            <input type="text" id="timeslot-activity" placeholder="What are you doing?" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-cancel">Cancel</button>
+                            <button type="submit" class="btn-primary">Add Time Slot</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </section>
     </main>
 </div>
+
+<!-- Stats Modal -->
 <div id="statsModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content stats-modal">
         <span class="close-btn">&times;</span>
-        <h2>Your Progress 📈</h2>
-        <a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="margin-left: auto; margin-right: 20px;">
-            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
-        </a>
-        <div class="tabs">
-            <div class="tab active" data-tab="stats">📈 Stats</div>
-            <div class="tab" data-tab="store">🛒 Themes</div>
-            <div class="tab" data-tab="settings">⚙️ Settings</div>
-            <div class="tab" data-tab="profile">👤 Profile</div>
-            <div class="tab" data-tab="journal">📔 Journal</div>
-            <div class="tab" data-tab="timetable">📅 Timetable</div>
+        <h2>Your Productivity Analytics 📈</h2>
+        
+        <div class="stats-tabs">
+            <div class="stats-tab active" data-tab="overview">Overview</div>
+            <div class="stats-tab" data-tab="daily">Daily</div>
+            <div class="stats-tab" data-tab="weekly">Weekly</div>
+            <div class="stats-tab" data-tab="achievements">Achievements</div>
         </div>
-        <div id="statsContainer" class="tab-content active">
-             <p class="stats-summary">Total Focus: <strong id="totalFocusTime">0h 0m</strong> | Total Sessions: <strong id="totalSessionsCount">0</strong></p>
-            <div class="chart-group">
-                <div class="chart-container"><canvas id="barChart"></canvas></div>
-                <div class="chart-container"><canvas id="pieChart"></canvas></div>
-            </div>
-        </div>
-        <div id="storeContainer" class="tab-content">
-            <div class="settings-group">
-                <h3>🎬 YouTube Background</h3>
-                <div class="input-group">
-                    <input type="text" id="youtube-input" placeholder="Paste YouTube URL...">
-                    <button id="setYoutubeBtn">Set</button>
+        
+        <div class="stats-content">
+            <div class="stats-overview active" data-tab-content="overview">
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-icon">🔥</div>
+                        <div class="stat-value" id="stat-current-streak">0</div>
+                        <div class="stat-label">Current Streak</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-value" id="stat-best-streak">0</div>
+                        <div class="stat-label">Best Streak</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value" id="stat-total-focus">0h 0m</div>
+                        <div class="stat-label">Total Focus</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-value" id="stat-total-sessions">0</div>
+                        <div class="stat-label">Total Sessions</div>
+                    </div>
+                </div>
+                
+                <div class="stats-charts">
+                    <div class="chart-container">
+                        <h3>Focus Distribution</h3>
+                        <canvas id="focus-distribution-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Daily Average</h3>
+                        <canvas id="daily-average-chart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="stats-highlights">
+                    <div class="stat-highlight">
+                        <div class="highlight-icon">👑</div>
+                        <div class="highlight-content">
+                            <div class="highlight-title">Longest Focus Session</div>
+                            <div class="highlight-value" id="longest-session">0 minutes</div>
+                        </div>
+                    </div>
+                    <div class="stat-highlight">
+                        <div class="highlight-icon">📅</div>
+                        <div class="highlight-content">
+                            <div class="highlight-title">Most Productive Day</div>
+                            <div class="highlight-value" id="most-productive-day">Monday</div>
+                        </div>
+                    </div>
+                    <div class="stat-highlight">
+                        <div class="highlight-icon">🌅</div>
+                        <div class="highlight-content">
+                            <div class="highlight-title">Best Time of Day</div>
+                            <div class="highlight-value" id="best-time-of-day">Morning</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="settings-group">
-                <h3>🖼️ Custom Image Background</h3>
-                <div class="input-group">
-                    <input type="file" id="image-upload-input" accept="image/*" class="hidden">
-                    <button id="uploadImageBtn">Upload Image</button>
-                    <button id="clearImageBtn" class="btn-danger">Clear</button>
+            
+            <div class="stats-daily hidden" data-tab-content="daily">
+                <div class="daily-header">
+                    <h3>Today's Focus</h3>
+                    <div class="date-display" id="today-date">September 20, 2025</div>
+                </div>
+                
+                <div class="daily-stats">
+                    <div class="daily-stat">
+                        <div class="daily-stat-value" id="today-focus-time">0h 0m</div>
+                        <div class="daily-stat-label">Focus Time</div>
+                    </div>
+                    <div class="daily-stat">
+                        <div class="daily-stat-value" id="today-sessions">0</div>
+                        <div class="daily-stat-label">Sessions</div>
+                    </div>
+                    <div class="daily-stat">
+                        <div class="daily-stat-value" id="today-completion">0%</div>
+                        <div class="daily-stat-label">Goal Completion</div>
+                    </div>
+                </div>
+                
+                <div class="daily-timeline">
+                    <h4>Today's Timeline</h4>
+                    <div class="timeline-container" id="today-timeline">
+                        <!-- Timeline items will be added here -->
+                    </div>
                 </div>
             </div>
-            <h3>Or Select a Theme</h3>
-            <div id="storeItems">
-                 <div class="store-item" data-type="image" data-path="https://images.unsplash.com/photo-1542831371-d648083a23de?q=80&w=2070&auto=format&fit=crop">
-                    <span>🌆 Cosmic Code</span><button>Apply</button>
+            
+            <div class="stats-weekly hidden" data-tab-content="weekly">
+                <div class="weekly-header">
+                    <h3>Weekly Performance</h3>
+                    <div class="week-display" id="current-week-display-stats">Sep 15 - Sep 21, 2025</div>
                 </div>
-                <div class="store-item" data-type="youtube" data-id="4wJRkS-M-3s">
-                    <span>🎵 Lofi Study Cafe</span><button>Apply</button>
+                
+                <div class="weekly-chart">
+                    <canvas id="weekly-focus-chart"></canvas>
                 </div>
-                <div class="store-item" data-type="youtube" data-id="NJuSStkIZBg">
-                    <span>🌧️ Cozy Rainy Night</span><button>Apply</button>
-                </div>
-                <div class="store-item" data-type="youtube" data-id="6KL2QZ91kAM">
-                    <span>🏞️ Nature Walk</span><button>Apply</button>
-                </div>
-            </div>
-        </div>
-        <div id="settingsContainer" class="tab-content">
-            <h3>⏱️ Timer Durations (minutes)</h3>
-            <div class="settings-grid">
-                <label for="work-duration">Work:</label>
-                <input type="number" id="work-duration" min="1">
-                <label for="short-break-duration">Short Break:</label>
-                <input type="number" id="short-break-duration" min="1">
-                <label for="long-break-duration">Long Break:</label>
-                <input type="number" id="long-break-duration" min="1">
-            </div>
-            <!-- New Settings -->
-            <h3>🎵 Sound Effects</h3>
-            <div class="settings-group">
-                 <label for="sound-effects-select">Start/End Sounds:</label>
-                 <select id="sound-effects-select" class="settings-select">
-                    <option value="indian">For Indians</option>
-                    <option value="non-indian">For Non-Indians</option>
-                    <option value="off">Turn Off</option>
-                </select>
-            </div>
-            <h3>🤖 Accountability AI</h3>
-            <div class="settings-group">
-                <div class="toggle-switch-container">
-                    <label for="accountability-toggle">Accountability Partner (Camera)</label>
-                    <label class="switch">
-                        <input type="checkbox" id="accountability-toggle">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-                <p class="settings-description" id="accountability-warning">Pauses the timer if you're away from the screen for 30+ seconds. Note: This feature only works when you're using the current tab.</p>
-            </div>
-            <button id="saveSettingsBtn">Save Settings</button>
-        </div>
-        <div id="profileContainer" class="tab-content">
-            <div class="info-zone">
-                <h3>🔥 Streak Info</h3>
-                <p>Complete at least one full work session each day to build your streak. Keep the fire going!</p>
-            </div>
-             <div class="danger-zone">
-                <h3>⚠️ Danger Zone</h3>
-                <p>This will reset ALL your stats and settings permanently.</p>
-                <button id="clearDataBtn" class="btn-danger">Clear All Data</button>
-            </div>
-        </div>
-        <div id="journalContainer" class="tab-content">
-            <div class="journal-tab-content">
-                <h3>Your Journal Entries</h3>
-                <div id="journal-tab-entries" class="journal-tab-entries">
-                    <!-- Journal entries will be displayed here -->
+                
+                <div class="weekly-summary">
+                    <div class="weekly-summary-item">
+                        <div class="summary-value" id="weekly-total-focus">0h 0m</div>
+                        <div class="summary-label">Total Focus</div>
+                    </div>
+                    <div class="weekly-summary-item">
+                        <div class="summary-value" id="weekly-avg-focus">0h 0m</div>
+                        <div class="summary-label">Daily Average</div>
+                    </div>
+                    <div class="weekly-summary-item">
+                        <div class="summary-value" id="weekly-sessions">0</div>
+                        <div class="summary-label">Total Sessions</div>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div id="timetableContainer" class="tab-content">
-            <div class="timetable-tab-content">
-                <h3>Your Weekly Schedule</h3>
-                <p>View and manage your timetable from the main timetable section.</p>
+            
+            <div class="stats-achievements hidden" data-tab-content="achievements">
+                <h3>Your Achievements</h3>
+                <div class="achievements-grid">
+                    <div class="achievement-item locked">
+                        <div class="achievement-icon">🔥</div>
+                        <div class="achievement-info">
+                            <div class="achievement-title">7-Day Streak</div>
+                            <div class="achievement-desc">Maintain a 7-day focus streak</div>
+                        </div>
+                    </div>
+                    <div class="achievement-item locked">
+                        <div class="achievement-icon">⏰</div>
+                        <div class="achievement-info">
+                            <div class="achievement-title">Early Bird</div>
+                            <div class="achievement-desc">Complete a session before 8 AM</div>
+                        </div>
+                    </div>
+                    <div class="achievement-item locked">
+                        <div class="achievement-icon">🎯</div>
+                        <div class="achievement-info">
+                            <div class="achievement-title">Focused</div>
+                            <div class="achievement-desc">Complete a 60-minute session</div>
+                        </div>
+                    </div>
+                    <div class="achievement-item locked">
+                        <div class="achievement-icon">📅</div>
+                        <div class="achievement-info">
+                            <div class="achievement-title">Consistent</div>
+                            <div class="achievement-desc">Focus for 5 days in a row</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
-<div id="cornerWidget">
-    <div class="progress-label"><span>Day</span><span id="dayProgressPercent"></span></div>
-    <div class="progress-bar-container"><div id="dayProgressBar" class="progress-bar"></div></div>
-    <div class="progress-label"><span>Month</span><span id="monthProgressPercent"></span></div>
-    <div class="progress-bar-container"><div id="monthProgressBar" class="progress-bar"></div></div>
-    <div class="progress-label"><span>Year</span><span id="yearProgressPercent"></span></div>
-    <div class="progress-bar-container"><div id="yearProgressBar" class="progress-bar"></div></div>
-</div>
-<div id="ambient-container"></div>
-<div id="focusModeUI">
-    <div id="focusModeTimer"></div>
-    <div id="focusModeProgressBarContainer"><div id="focusModeProgressBar"></div></div>
-    <div id="focusModeControls">
-        <button id="focusModePlayPauseBtn" aria-label="Play/Pause"><span class="icon"></span></button>
-        <button id="focusModeExitBtn" aria-label="Exit Focus Mode"><span class="icon"></span></button>
-    </div>
-</div>
-<div id="completionModal" class="modal">
-    <div class="completion-content">
-        <div class="completion-icon">🎉</div>
-        <h2 id="completion-title">Session Complete!</h2>
-        <p id="completion-message">Great work! Keep the momentum going.</p>
-        <button id="closeCompletionModalBtn">Awesome!</button>
-    </div>
-</div>
-<!-- New Session Review Modal with animated assistant -->
-<div id="reviewModal" class="modal">
-    <div class="review-modal-content">
-        <div class="assistant-character animated-walk-in">
-            <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-                <ellipse id="body" cx="60" cy="80" rx="28" ry="25" fill="#6c63ff"/>
-                <circle id="head" cx="60" cy="55" r="20" fill="#ffe0b2" stroke="#333" stroke-width="2"/>
-                <ellipse id="eye-left" cx="54" cy="55" rx="3" ry="4" fill="#222"/>
-                <ellipse id="eye-right" cx="66" cy="55" rx="3" ry="4" fill="#222"/>
-                <path d="M54 65 Q60 73 66 65" stroke="#222" stroke-width="2" fill="none"/>
-                <g id="pointing-arm">
-                    <rect x="70" y="85" width="30" height="8" rx="4" fill="#ffe0b2" stroke="#333" stroke-width="2"/>
-                    <circle cx="100" cy="89" r="7" fill="#ffe0b2" stroke="#333" stroke-width="2"/>
-                </g>
-                <rect id="leg" x="62" y="100" width="8" height="20" rx="4" fill="#6c63ff"/>
-            </svg>
-        </div>
-        <h2 class="review-title">Session Review</h2>
-        <p class="review-subtitle">Here's how your focus session went:</p>
-        <div class="review-stats-grid" id="statsGrid">
-            <div class="review-stat-item">
-                <h3>Total Focus</h3>
-                <p id="reviewFocusTime">0m 0s</p>
-            </div>
-            <div class="review-stat-item">
-                <h3>Away Time</h3>
-                <p id="reviewAwayTime">0m 0s</p>
-            </div>
-            <div class="review-stat-item">
-                <h3>Total Duration</h3>
-                <p id="reviewTotalDuration">0m 0s</p>
-            </div>
-        </div>
-        <button id="closeReviewModalBtn">Keep Flowing!</button>
-    </div>
-</div>
-<div id="pip-player-container" class="hidden">
-    <div id="pip-player-header">
-        <span class="pip-title">YouTube Player</span>
-        <button id="pip-close-btn">&times;</button>
-    </div>
-    <div id="pip-player-content">
-        <div id="player"></div>
-    </div>
-    <div class="pip-input-container">
-        <input type="text" id="pip-youtube-input" placeholder="Paste new YouTube URL here...">
-        <button id="pip-set-btn">Set</button>
-    </div>
-    <div id="pip-resize-handle"></div>
 </div>
 
 <!-- macOS Dock Navigation -->
@@ -429,12 +523,6 @@
             </div>
             <span class="dock-label">Stats</span>
         </div>
-        <div class="dock-item" data-section="settings">
-            <div class="dock-icon">
-                <i class="fas fa-cog"></i>
-            </div>
-            <span class="dock-label">Settings</span>
-        </div>
     </div>
 </nav>
 
@@ -467,8 +555,5 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
 <script src="https://www.youtube.com/iframe_api"></script>
 <script src="script.js" type="module"></script>
-<a href="https://www.buymeacoffee.com/YouFloww" target="_blank" style="position: fixed; bottom: 20px; left: 20px; z-index: 1000;">
-    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 30px !important;width: 108px !important;" >
-</a>
 </body>
 </html>
