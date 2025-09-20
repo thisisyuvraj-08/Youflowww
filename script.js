@@ -976,6 +976,10 @@ function toggleTodo(index) {
         currentUserData.todos[index].completed = !currentUserData.todos[index].completed;
         saveUserData();
         loadTodos();
+        // Play sound and confetti if checked
+        if (currentUserData.todos[index].completed) {
+            playCompleteSoundAndConfetti();
+        }
     }
 }
 
@@ -1041,6 +1045,76 @@ function makeTodoListSortable() {
 
 // Add event delegation for subtask checkboxes and delete buttons
 document.addEventListener('click', (e) => {
+// Save task on Enter
+document.getElementById('todo-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('add-todo-btn').click();
+    }
+});
+// Confetti and joy sound logic
+function playCompleteSoundAndConfetti() {
+    // Play joy sound
+    let audio = document.getElementById('completeSound');
+    if (!audio) {
+        audio = document.createElement('audio');
+        audio.id = 'completeSound';
+        audio.src = 'complete.mp3'; // User will provide this file in repo
+        document.body.appendChild(audio);
+    }
+    audio.currentTime = 0;
+    audio.play();
+    // Confetti animation
+    launchConfetti();
+}
+
+function launchConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width = canvas.offsetWidth;
+    const H = canvas.height = canvas.offsetHeight;
+    const confettiCount = 120;
+    const confetti = [];
+    for (let i = 0; i < confettiCount; i++) {
+        confetti.push({
+            x: Math.random() * W,
+            y: Math.random() * H,
+            r: Math.random() * 8 + 4,
+            d: Math.random() * confettiCount,
+            color: `hsl(${Math.random()*360},90%,60%)`,
+            tilt: Math.random() * 10 - 10
+        });
+    }
+    let angle = 0;
+    let tiltAngle = 0;
+    let frame = 0;
+    function drawConfetti() {
+        ctx.clearRect(0, 0, W, H);
+        for (let i = 0; i < confettiCount; i++) {
+            let c = confetti[i];
+            ctx.beginPath();
+            ctx.ellipse(c.x, c.y, c.r, c.r/2, c.tilt, 0, 2 * Math.PI);
+            ctx.fillStyle = c.color;
+            ctx.fill();
+        }
+        updateConfetti();
+        frame++;
+        if (frame < 80) requestAnimationFrame(drawConfetti);
+        else ctx.clearRect(0, 0, W, H);
+    }
+    function updateConfetti() {
+        angle += 0.01;
+        tiltAngle += 0.1;
+        for (let i = 0; i < confettiCount; i++) {
+            let c = confetti[i];
+            c.y += (Math.cos(angle + c.d) + 3 + c.r/2) / 2;
+            c.x += Math.sin(angle);
+            c.tilt = Math.sin(tiltAngle - (i/3)) * 15;
+        }
+    }
+    drawConfetti();
+}
     // Handle subtask checkbox toggle
     if (e.target.matches('.subtask-item input[type="checkbox"]')) {
         const todoIndex = e.target.dataset.todoIndex;
